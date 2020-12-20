@@ -1,0 +1,47 @@
+{
+  "name": "template",
+  "description": "template project for solidity development",
+  "license": "MIT",
+  "version": "0.0.1",
+  "keywords": [
+    "ethereum",
+    "defi"
+  ],
+  "files": [
+    "contracts",
+    "build"
+  ],
+  "engines": {
+    "node": ">=10"
+  },
+  "scripts": {
+    "lint": "yarn prettier ./test/*.ts --check",
+    "lint:fix": "yarn prettier ./test/*.ts --write",
+    "clean": "hardhat clean",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "npx hardhat run --network hardhat scripts/deploy.arbi.ts"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.1",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/hardhat-upgrades": "^1.4.3",
+    "@types/chai": "^4.2.14",
+    "@types/mocha": "^8.0.4",
+    "@types/node": "^14.14.10",
+    "chai": "^4.2.0",
+    "ethereum-waffle": "^3.2.1",
+    "ethers": "^5.0.23",
+    "hardhat": "^2.0.4",
+    "mocha": "^8.2.1",
+    "prettier": "^2.2.1",
+    "rimraf": "^3.0.0",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.1.2"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts-ethereum-package": "^3.0.0",
+    "@uniswap/v2-core": "^1.0.1",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0"
+  }
+}
