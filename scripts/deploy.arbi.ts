@@ -15,7 +15,7 @@ async function upgradeProxy(contract: string) {
   // const wallet = new ethers.Wallet(deployer.key, ethers.provider)
   const Factory = await ethers.getContractFactory(contract)
   const instance = await upgrades.upgradeProxy(COREARBI, Factory)
-  console.log(`contract: ${contract} deployed at ${instance.address} by address: ${instance.deployTransaction.from}`)
+  console.log(`contract: ${contract} deployed at ${instance.address}`)
 }
 
 upgradeProxy('COREArbi')
