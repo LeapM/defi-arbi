@@ -1,7 +1,7 @@
 pragma solidity ^0.6.6;
 
-import '@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts-ethereum-package/contracts/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
+// import "@openzeppelin/contracts/proxy/Initializable.sol";
 import '@uniswap/v2-periphery/contracts/libraries/UniswapV2Library.sol';
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
 import 'hardhat/console.sol';
@@ -65,7 +65,7 @@ interface IERC95 {
     function wrap(address to, uint256 amt) external;
 }
 
-contract COREArbi is Initializable, OwnableUpgradeSafe {
+contract COREArbi is Initializable, OwnableUpgradeable {
     address constant FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
@@ -79,8 +79,7 @@ contract COREArbi is Initializable, OwnableUpgradeSafe {
     uint8 public version;
 
     function initialize() public initializer {
-        require(msg.sender == ME, 'only me can do it');
-        OwnableUpgradeSafe.__Ownable_init();
+        OwnableUpgradeable.__Ownable_init();
         version = 0x1;
     }
 

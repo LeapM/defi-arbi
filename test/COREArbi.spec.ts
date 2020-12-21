@@ -6,6 +6,8 @@ import { ERC20_ABI } from './ABI/ERC20'
 import { ABI as WCORE_ABI } from './ABI/WCORE'
 import IUniswapV2Router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.json'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
+import { sign } from 'crypto'
+import { formatUnits } from 'ethers/lib/utils'
 const {
   utils: { formatEther, parseEther },
 } = ethers
@@ -29,9 +31,15 @@ describe('CORE ARBI Test', () => {
 
     await impersonate(ME)
     const signer = ethers.provider.getSigner(ME)
+    console.log(formatEther(await signer.getBalance()))
     const COREArbi = await ethers.getContractFactory('COREArbi', signer)
+
     coreArbi = await upgrades.deployProxy(COREArbi)
+    console.log(formatUnits(coreArbi.deployTransaction.gasLimit, 'wei'))
+    console.log(formatEther(await signer.getBalance()))
     await coreArbi.deployed()
+    console.log(formatUnits(await signer.getBalance()))
+
     core = new Contract(CORE, ERC20_ABI, ethers.provider)
     wcore = new Contract(WCORE, WCORE_ABI, ethers.provider)
     signers = await ethers.getSigners()
@@ -42,7 +50,7 @@ describe('CORE ARBI Test', () => {
     uniswapRouter = new Contract(ROUTER, IUniswapV2Router02.abi, ethers.provider)
   })
 
-  it('assign the owner successfully', async () => {
+  it.only('assign the owner successfully', async () => {
     const owner = await coreArbi.owner()
     expect(owner).to.equal(ME)
   })
