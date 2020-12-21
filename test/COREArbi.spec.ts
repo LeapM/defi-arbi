@@ -7,7 +7,7 @@ import { ABI as WCORE_ABI } from './ABI/WCORE'
 import IUniswapV2Router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.json'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { sign } from 'crypto'
-import { formatUnits } from 'ethers/lib/utils'
+import { formatUnits, parseUnits } from 'ethers/lib/utils'
 const {
   utils: { formatEther, parseEther },
 } = ethers
@@ -50,7 +50,7 @@ describe('CORE ARBI Test', () => {
     uniswapRouter = new Contract(ROUTER, IUniswapV2Router02.abi, ethers.provider)
   })
 
-  it.only('assign the owner successfully', async () => {
+  it('assign the owner successfully', async () => {
     const owner = await coreArbi.owner()
     expect(owner).to.equal(ME)
   })
@@ -87,13 +87,15 @@ describe('CORE ARBI Test', () => {
     // console.log(parseEther(approved[0]), parseEther(approved[1]))
   })
 
-  it('execute sell on dai pair', async () => {
+  it.only('execute sell on dai pair', async () => {
     await impersonate(ME)
     await coreArbi.approve()
 
-    const transaction = await coreArbi.sellCoreOnDaiPair(parseEther('0.5'), parseEther('10'))
+    const transaction = await coreArbi.sellCoreOnDaiPair(parseEther('0.5'), parseEther('10'), 10)
     await stopImpersonate(ME)
-    // const transactionInfo = await ethers.provider.getTransactionReceipt(transaction.hash)
+    const transactionInfo = await ethers.provider.getTransactionReceipt(transaction.hash)
+    console.log(formatUnits(transactionInfo.cumulativeGasUsed, 'wei'), formatUnits(transactionInfo.gasUsed, 'wei'))
+    expect(transactionInfo.gasUsed).to.lt(parseUnits('510741', 'wei'))
     // //gas 573523.0
     // const gasPrice = ethers.utils.parseUnits('40', 'gwei')
     // const ethPrice = 500

@@ -123,7 +123,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         wcore = IERC20(WCORE).balanceOf(address(this));
     }
 
-    function getEthPairArbiRate(uint256 amount) public view returns (uint256 arbiRate) {
+    function getEthPairArbiRate(uint256 amount, uint8 fot) public view returns (uint256 arbiRate) {
         address[] memory core2weth = new address[](3);
         core2weth[0] = CORE;
         core2weth[1] = WETH;
@@ -134,22 +134,22 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
         // sell CORE on CORE/eth pair
         uint256[] memory ethPairPrices = UniswapV2Library.getAmountsOut(FACTORY, amount, core2weth);
-        uint256 daiOut = amountAfterFee(ethPairPrices[2]);
+        uint256 daiOut = ethPairPrices[2] * (1000 - fot) / 1000;
 
         uint256[] memory daiPairPrices = UniswapV2Library.getAmountsIn(FACTORY, amount, dai2core);
 
         uint256 daiIn = daiPairPrices[0];
-        console.log(daiOut, daiIn);
+        // console.log(daiOut, daiIn);
         return daiOut > daiIn ? daiOut - daiIn : 0;
     }
 
-    function getDaiPairArbiRate(uint256 amount) public view returns (uint256 arbiRate) {
+    function getDaiPairArbiRate(uint256 amount, uint8 fot) public view returns (uint256 arbiRate) {
         address[] memory core2dai = new address[](2);
         core2dai[0] = WCORE;
         core2dai[1] = WDAI;
 
         uint256[] memory daiPairPrices = UniswapV2Library.getAmountsOut(FACTORY, amount, core2dai);
-        uint256 daiOut = amountAfterFee(daiPairPrices[1]);
+        uint256 daiOut = daiPairPrices[1] * (1000 - fot) / 1000;
 
         address[] memory core2weth = new address[](3);
         core2weth[0] = DAI;
@@ -161,18 +161,16 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         uint256[] memory ethPairPrices = UniswapV2Library.getAmountsIn(FACTORY, amount, core2weth);
 
         uint256 daiIn = ethPairPrices[0];
-        console.log(daiOut, daiIn);
+        // console.log(daiOut, daiIn);
         return daiOut > daiIn ? daiOut - daiIn : 0;
     }
 
-    function sellCoreOnEthPair(uint256 amount, uint256 gasFee) public {
-        uint256 profit = getEthPairArbiRate(amount);
+    function sellCoreOnEthPair(uint256 amount, uint256 gasFee, uint8 fot)  public onlyOwner {
+        uint256 profit = getEthPairArbiRate(amount, fot);
         require(profit > gasFee, 'no profit');
 
         unwrapIfNecessary(CORE, WCORE, amount);
 
-        uint256 coreBalanceBefore = getCoreBalances();
-        uint256 daiBalanceBefore = getDaiBalances();
 
         address[] memory core2weth = new address[](3);
         core2weth[0] = CORE;
@@ -195,37 +193,25 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
         IUniSwapRouter(ROUTER).swapTokensForExactTokens(amount, uint256(-1), dai2core, address(this), block.timestamp);
 
-        uint256 coreBalanceAfter = getCoreBalances();
-        uint256 daiBalanceAfter = getDaiBalances();
 
-        require(
-            coreBalanceAfter >= coreBalanceBefore && daiBalanceAfter > daiBalanceBefore,
-            "total access doesn't increase"
-        );
-
-        require(
-            coreBalanceAfter >= coreBalanceBefore && daiBalanceAfter > daiBalanceBefore,
-            "total asset doesn't increase"
-        );
-
-        console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
+        // console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
     }
 
-    function sellCoreOnDaiPair(uint256 amount, uint256 gasFee) public {
-        uint256 profit = getDaiPairArbiRate(amount);
+    function sellCoreOnDaiPair(uint256 amount, uint256 gasFee, uint8 fot) public onlyOwner {
+        uint256 profit = getDaiPairArbiRate(amount, fot);
         require(profit > gasFee, 'no profit');
 
         wrapIfNecessary(WCORE, amount);
 
-        uint256 coreBalanceBefore = getCoreBalances();
-        uint256 daiBalanceBefore = getDaiBalances();
+        // uint256 coreBalanceBefore = getCoreBalances();
+        // uint256 daiBalanceBefore = getDaiBalances();
 
         address[] memory dai2core = new address[](2);
         dai2core[0] = WCORE;
         dai2core[1] = WDAI;
 
-        console.log('try to sell wcore');
-        console.log('WCORE balance', IERC20(WCORE).balanceOf(address(this)));
+        // console.log('try to sell wcore');
+        // console.log('WCORE balance', IERC20(WCORE).balanceOf(address(this)));
         IUniSwapRouter(ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amount,
             0,
@@ -234,8 +220,8 @@ contract COREArbi is Initializable, OwnableUpgradeable {
             block.timestamp
         );
 
-        console.log('WCORE balance after sale', IERC20(WCORE).balanceOf(address(this)));
-        console.log('complete to sell wcore');
+        // console.log('WCORE balance after sale', IERC20(WCORE).balanceOf(address(this)));
+        // console.log('complete to sell wcore');
 
         address[] memory core2weth = new address[](3);
         core2weth[0] = DAI;
@@ -243,26 +229,22 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         core2weth[2] = CORE;
 
         uint256[] memory prices = UniswapV2Library.getAmountsIn(FACTORY, amount, core2weth);
-        console.log('required dai amount', prices[0]);
+        // console.log('required dai amount', prices[0]);
         unwrapIfNecessary(DAI, WDAI, prices[0]);
 
         IUniSwapRouter(ROUTER).swapTokensForExactTokens(amount, uint256(-1), core2weth, address(this), block.timestamp);
 
-        uint256 coreBalanceAfter = getCoreBalances();
-        uint256 daiBalanceAfter = getDaiBalances();
+        // uint256 coreBalanceAfter = getCoreBalances();
+        // uint256 daiBalanceAfter = getDaiBalances();
 
-        require(
-            coreBalanceAfter >= coreBalanceBefore && daiBalanceAfter > daiBalanceBefore,
-            "total asset doesn't increase"
-        );
+        // require(
+        //     coreBalanceAfter >= coreBalanceBefore && daiBalanceAfter > daiBalanceBefore,
+        //     "total asset doesn't increase"
+        // );
 
-        console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
+        // console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
     }
 
-    function amountAfterFee(uint256 amount) internal view returns (uint256) {
-        uint256 fee = IFeeApprover(FOT).feePercentX100();
-        return (amount * (1000 - fee)) / 1000;
-    }
 
     function getCoreBalances() public view returns (uint256) {
         uint256 coreBalance = IERC20(CORE).balanceOf(address(this));
@@ -278,9 +260,9 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
     function wrapIfNecessary(address erc95Token, uint256 amount) internal {
         uint256 balance = IERC20(erc95Token).balanceOf(address(this));
-        console.log('enter wrap if necessary balance and amount', balance, amount);
+        // console.log('enter wrap if necessary balance and amount', balance, amount);
         if (balance < amount) {
-            console.log('try to wrap', erc95Token, amount - balance);
+            // console.log('try to wrap', erc95Token, amount - balance);
             IERC95(erc95Token).wrap(address(this), amount - balance);
         }
     }
@@ -290,10 +272,10 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         address erc95Token,
         uint256 amount
     ) internal {
-        console.log('enter unwrap if necessary');
+        // console.log('enter unwrap if necessary');
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance < amount) {
-            console.log('try to unwrap', token, amount - balance);
+            // console.log('try to unwrap', token, amount - balance);
             IERC95(erc95Token).unwrap(amount - balance);
         }
     }
