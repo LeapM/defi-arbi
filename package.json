@@ -43,6 +43,7 @@
     "typescript": "^4.1.2"
   },
   "dependencies": {
+    "@balancer-labs/sor": "^1.0.0",
     "@openzeppelin/contracts": "^3.3.0",
     "@openzeppelin/contracts-upgradeable": "^3.3.0",
     "@uniswap/v2-core": "^1.0.1",

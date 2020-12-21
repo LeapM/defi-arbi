@@ -2,16 +2,12 @@ import { Contract, utils, providers, Wallet, ethers, BigNumber } from 'ethers'
 import deployer from '../secret/deployer.json'
 import COREArbi from '../artifacts/contracts/COREArbi.sol/COREArbi.json'
 import UniV2Router from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
-import { CORE, FACTORY, ROUTER, WETH, DAI, WDAI, WCORE } from '../constants/addresses'
-import { formatUnits } from 'ethers/lib/utils'
-import { promises } from 'fs'
-import { exit } from 'process'
-import { time } from 'console'
+import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI WDAI, WCORE } from '../constants/addresses'
 const { parseEther, formatEther } = utils
-const CONTRACT_ADDRESS = '0x02A7F183821dB6C3789Ef096aBf6B4f6F618aB8E'
+
 const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
 const signer = new Wallet(deployer.key, provider)
-const coreArbi = new Contract(CONTRACT_ADDRESS, COREArbi.abi, signer)
+const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const router = new Contract(ROUTER, UniV2Router.abi, signer)
 const gasLimit = BigNumber.from('645986')
 const lastTrade = {
