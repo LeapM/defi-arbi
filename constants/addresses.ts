@@ -11,3 +11,5 @@ export const COREARBI = '0x02A7F183821dB6C3789Ef096aBf6B4f6F618aB8E'
 export const COREETHLP = '0x32ce7e48debdccbfe0cd037cc89526e4382cb81b'
 export const COREBTCLP = '0x6fad7d44640c5cd0120deec0301e8cf850becb68'
 export const COREDAILP = '0x01ac08e821185b6d87e68c67f9dc79a8988688eb'
+
+export const FOT = '0x2e2A33CECA9aeF101d679ed058368ac994118E7a'

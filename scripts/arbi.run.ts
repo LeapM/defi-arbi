@@ -1,14 +1,18 @@
 import { Contract, utils, providers, Wallet, ethers, BigNumber } from 'ethers'
 import deployer from '../secret/deployer.json'
 import COREArbi from '../artifacts/contracts/COREArbi.sol/COREArbi.json'
+import FeeProvider from '../artifacts/contracts/IFeeProvider.sol/IFeeApprover.json'
 import UniV2Router from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
-import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE } from '../constants/addresses'
+import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT } from '../constants/addresses'
+import { formatUnits } from 'ethers/lib/utils'
+import { exit } from 'process'
 const { parseEther, formatEther } = utils
 
 const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
 const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const router = new Contract(ROUTER, UniV2Router.abi, signer)
+const feeProvider = new Contract(FOT, FeeProvider.abi, signer)
 const gasLimit = BigNumber.from('630000')
 const lastTrade = {
   gasPrice: 0,
@@ -64,22 +68,24 @@ async function executeStrategy(
   strategy: Strategy,
   amount: BigNumber,
   gasCost: BigNumber,
+  fot: BigNumber,
   option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
   let tx
-  if (lastTrade.count > 20) {
-    console.log('reach maximum trading acount', 'skip')
+  if (lastTrade.count > 3) {
+    return
   }
-  if (lastTrade.timestamp) {
-    if (lastTrade.status == 'pending') {
+  if (lastTrade.status == 'pending') {
+    const threeMins = 18000
+    if (Date.now() - lastTrade.timestamp < threeMins && option.gasPrice.lt(lastTrade.gasPrice)) {
       const receipt = await provider.getTransactionReceipt(lastTrade.tx!)
       if (!receipt) {
         console.log('pending transaction, skip executing')
         return
       }
-
-      lastTrade.status = 'completed'
     }
+
+    lastTrade.status = 'completed'
   }
   if (strategy == Strategy.CORE) {
     tx = await coreArbi.sellCoreOnEthPair(amount, gasCost, 10, option)
@@ -92,29 +98,68 @@ async function executeStrategy(
   lastTrade.status = 'pending'
   lastTrade.tx = tx.hash
 }
+
+interface arbiF {
+  (amount: BigNumber, fot: BigNumber): Promise<BigNumber>
+}
+
+type ArbiOption = {
+  f: arbiF
+  strategy: Strategy
+}
+
+async function findBestArbi(fot: BigNumber) {
+  const bestArbi: { amount: BigNumber; strategy?: Strategy; profit: BigNumber } = {
+    amount: BigNumber.from('0'),
+    strategy: undefined,
+    profit: BigNumber.from('0'),
+  }
+  try {
+    const amounts = ['0.8', '1.6'].map((a) => parseEther(a))
+    const options: ArbiOption[] = [
+      { f: coreArbi.getDaiPairArbiRate, strategy: Strategy.WCORE },
+      {
+        f: coreArbi.getEthPairArbiRate,
+        strategy: Strategy.CORE,
+      },
+    ]
+    for (let amount of amounts) {
+      for (let option of options) {
+        const profit = await option.f(amount, fot)
+        console.log(`profit: ${formatEther(profit)} amount: ${formatEther(amount)}, strategy: ${option.strategy}`)
+        if (profit.gt(bestArbi.profit)) {
+          bestArbi.profit = profit
+          bestArbi.amount = amount
+          bestArbi.strategy = option.strategy
+        }
+      }
+    }
+  } finally {
+    return bestArbi
+  }
+}
 async function runCoreArbi() {
   while (true) {
-    console.log('running checking at:', new Date().toLocaleString())
-    const gasPrice = await provider.getGasPrice()
-    const ethPrice = await getEthPrice()
-    const gasCost = gasPrice.mul(gasLimit).mul(ethPrice).div(parseEther('1'))
-    const amount = parseEther('1')
-    const daiProfit = await coreArbi.getDaiPairArbiRate(amount, 10)
-    const option = {
-      gasPrice: gasPrice.mul(102).div(100),
-      gasLimit,
+    try {
+      const fot = await feeProvider.feePercentX100()
+      const gasPrice = await provider.getGasPrice()
+      console.log(
+        `${new Date().toLocaleString()} - gas price: ${formatUnits(gasPrice, 'gwei')} fot: ${formatUnits(fot, 'wei')}`
+      )
+      const ethPrice = await getEthPrice()
+      const gasCost = gasPrice.mul(gasLimit).mul(ethPrice).div(parseEther('1'))
+      const option = {
+        gasPrice: gasPrice.mul(102).div(100),
+        gasLimit,
+      }
+      const arbiPlan = await findBestArbi(fot)
+      if (arbiPlan.profit.gt(gasCost)) {
+        await executeStrategy(arbiPlan.strategy!, arbiPlan.amount, gasCost, fot, option)
+      }
+      await delay(20000)
+    } catch (error) {
+      console.error(error)
     }
-    if (daiProfit.gt(gasCost)) {
-      console.log('dai profit', formatEther(daiProfit), formatEther(gasCost))
-      await executeStrategy(Strategy.WCORE, amount, gasCost, option)
-    }
-    const ethProfit = await coreArbi.getEthPairArbiRate(amount, 10)
-
-    if (ethProfit.gt(gasCost)) {
-      console.log('eth profit', formatEther(ethProfit), formatEther(gasCost))
-      await executeStrategy(Strategy.CORE, amount, gasCost, option)
-    }
-    await delay(20000)
   }
 }
 
