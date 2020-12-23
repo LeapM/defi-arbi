@@ -125,7 +125,9 @@ async function findBestArbi(fot: BigNumber) {
     for (let amount of amounts) {
       for (let option of options) {
         const profit = await option.f(amount, fot)
-        console.log(`profit: ${formatEther(profit)} amount: ${formatEther(amount)}, strategy: ${option.strategy}`)
+        if (profit.gt(0)) {
+          console.log(`profit: ${formatEther(profit)} amount: ${formatEther(amount)}, strategy: ${option.strategy}`)
+        }
         if (profit.gt(bestArbi.profit)) {
           bestArbi.profit = profit
           bestArbi.amount = amount
