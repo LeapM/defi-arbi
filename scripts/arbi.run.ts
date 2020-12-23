@@ -16,7 +16,7 @@ const feeProvider = new Contract(FOT, FeeProvider.abi, signer)
 const gasLimit = BigNumber.from('630000')
 const lastTrade = {
   gasPrice: 0,
-  nounce: 0,
+  nonce: 0,
   timestamp: 0,
   tx: '',
   status: '',
@@ -69,7 +69,7 @@ async function executeStrategy(
   amount: BigNumber,
   gasCost: BigNumber,
   fot: BigNumber,
-  option: { gasPrice: BigNumber; gasLimit: BigNumber }
+  option: { gasPrice: BigNumber; gasLimit: BigNumber; nonce?: number }
 ) {
   let tx
   if (lastTrade.status == 'pending') {
@@ -83,6 +83,7 @@ async function executeStrategy(
     }
 
     lastTrade.status = 'completed'
+    option.nonce = lastTrade.nonce
   }
   if (strategy == Strategy.CORE) {
     tx = await coreArbi.sellCoreOnEthPair(amount, gasCost, 10, option)
@@ -94,6 +95,7 @@ async function executeStrategy(
   lastTrade.timestamp = Date.now()
   lastTrade.status = 'pending'
   lastTrade.tx = tx.hash
+  lastTrade.nonce = tx.nonce
 }
 
 interface arbiF {
