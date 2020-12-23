@@ -72,12 +72,9 @@ async function executeStrategy(
   option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
   let tx
-  if (lastTrade.count > 3) {
-    return
-  }
   if (lastTrade.status == 'pending') {
-    const threeMins = 18000
-    if (Date.now() - lastTrade.timestamp < threeMins && option.gasPrice.lt(lastTrade.gasPrice)) {
+    const waitPeriod = 1000 * 60 * 2
+    if (Date.now() - lastTrade.timestamp < waitPeriod && option.gasPrice.lt(lastTrade.gasPrice)) {
       const receipt = await provider.getTransactionReceipt(lastTrade.tx!)
       if (!receipt) {
         console.log('pending transaction, skip executing')
@@ -115,7 +112,7 @@ async function findBestArbi(fot: BigNumber) {
     profit: BigNumber.from('0'),
   }
   try {
-    const amounts = ['0.8', '1.6'].map((a) => parseEther(a))
+    const amounts = ['1', '1.5'].map((a) => parseEther(a))
     const options: ArbiOption[] = [
       { f: coreArbi.getDaiPairArbiRate, strategy: Strategy.WCORE },
       {

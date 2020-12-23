@@ -123,7 +123,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         wcore = IERC20(WCORE).balanceOf(address(this));
     }
 
-    function getEthPairArbiRate(uint256 amount, uint8 fot) public view returns (uint256 arbiRate) {
+    function getEthPairArbiRate(uint256 amount ) public view returns (uint256 arbiRate) {
         address[] memory core2weth = new address[](3);
         core2weth[0] = CORE;
         core2weth[1] = WETH;
@@ -134,7 +134,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
         // sell CORE on CORE/eth pair
         uint256[] memory ethPairPrices = UniswapV2Library.getAmountsOut(FACTORY, amount, core2weth);
-        uint256 daiOut = ethPairPrices[2] * (1000 - fot) / 1000;
+        uint256 daiOut = amountAfterFee(ethPairPrices[2]);
 
         uint256[] memory daiPairPrices = UniswapV2Library.getAmountsIn(FACTORY, amount, dai2core);
 
@@ -143,13 +143,13 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         return daiOut > daiIn ? daiOut - daiIn : 0;
     }
 
-    function getDaiPairArbiRate(uint256 amount, uint8 fot) public view returns (uint256 arbiRate) {
+    function getDaiPairArbiRate(uint256 amount) public view returns (uint256 arbiRate) {
         address[] memory core2dai = new address[](2);
         core2dai[0] = WCORE;
         core2dai[1] = WDAI;
 
         uint256[] memory daiPairPrices = UniswapV2Library.getAmountsOut(FACTORY, amount, core2dai);
-        uint256 daiOut = daiPairPrices[1] * (1000 - fot) / 1000;
+        uint256 daiOut = amountAfterFee(daiPairPrices[1]);
 
         address[] memory core2weth = new address[](3);
         core2weth[0] = DAI;
@@ -165,8 +165,8 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         return daiOut > daiIn ? daiOut - daiIn : 0;
     }
 
-    function sellCoreOnEthPair(uint256 amount, uint256 gasFee, uint8 fot)  public onlyOwner {
-        uint256 profit = getEthPairArbiRate(amount, fot);
+    function sellCoreOnEthPair(uint256 amount, uint256 gasFee)  public onlyOwner {
+        uint256 profit = getEthPairArbiRate(amount);
         require(profit > gasFee, 'no profit');
 
         unwrapIfNecessary(CORE, WCORE, amount);
@@ -197,8 +197,8 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         // console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
     }
 
-    function sellCoreOnDaiPair(uint256 amount, uint256 gasFee, uint8 fot) public onlyOwner {
-        uint256 profit = getDaiPairArbiRate(amount, fot);
+    function sellCoreOnDaiPair(uint256 amount, uint256 gasFee) public onlyOwner {
+        uint256 profit = getDaiPairArbiRate(amount);
         require(profit > gasFee, 'no profit');
 
         wrapIfNecessary(WCORE, amount);

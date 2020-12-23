@@ -23,7 +23,8 @@
     "deploy:local": "npx hardhat run --network hardhat scripts/deploy.arbi.ts",
     "deploy:live": "npx hardhat run --network mainnet scripts/deploy.arbi.ts",
     "deploy:ropsten": "npx hardhat run --network ropsten scripts/deploy.arbi.ts",
-    "start": "ts-node scripts/arbi.run.ts"
+    "start:arbit": "ts-node scripts/arbi.run.ts",
+    "start:bal": "ts-node scripts/bal.run.ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.1",
@@ -46,7 +47,9 @@
     "@balancer-labs/sor": "^1.0.0",
     "@openzeppelin/contracts": "^3.3.0",
     "@openzeppelin/contracts-upgradeable": "^3.3.0",
+    "@types/bignumber.js": "^5.0.0",
     "@uniswap/v2-core": "^1.0.1",
-    "@uniswap/v2-periphery": "^1.1.0-beta.0"
+    "@uniswap/v2-periphery": "^1.1.0-beta.0",
+    "bignumber": "^1.1.0"
   }
 }

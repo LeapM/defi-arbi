@@ -1,0 +1,70 @@
+{
+  "manifestVersion": "3.1",
+  "impls": {
+    "5991bb1315bcfdcf41176cc2b662a6b2dd1a6d0b9004396ccea1a2ea5ea7dfac": {
+      "address": "0x67CF9C4e8d03D966E331Cd8835650A48bA927DF4",
+      "txHash": "0xb034131266c1e8a8cae068a838418440557012a917b519907d611f527d666331",
+      "layout": {
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:24"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:29"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "@openzeppelin/contracts-upgradeable/GSN/ContextUpgradeable.sol:31"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:20"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:74"
+          },
+          {
+            "contract": "COREArbi",
+            "label": "version",
+            "type": "t_uint8",
+            "src": "contracts/COREArbi.sol:79"
+          }
+        ],
+        "types": {
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          },
+          "t_bool": {
+            "label": "bool"
+          }
+        }
+      }
+    }
+  },
+  "admin": {
+    "address": "0x3eA88c55485119460d1f171cae65f2BB1102D46b",
+    "txHash": "0xcafbb057acb31571883e6b13f6defe3584a9de3b9c4c7d9884d3473c8758bca8"
+  }
+}
