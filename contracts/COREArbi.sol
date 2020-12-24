@@ -165,7 +165,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         return daiOut > daiIn ? daiOut - daiIn : 0;
     }
 
-    function sellCoreOnEthPair(uint256 amount, uint256 gasFee)  public onlyOwner {
+    function sellCoreOnEthPair(uint256 amount, uint256 gasFee)  public {
         uint256 profit = getEthPairArbiRate(amount);
         require(profit > gasFee, 'no profit');
 
@@ -197,7 +197,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         // console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
     }
 
-    function sellCoreOnDaiPair(uint256 amount, uint256 gasFee) public onlyOwner {
+    function sellCoreOnDaiPair(uint256 amount, uint256 gasFee) public {
         uint256 profit = getDaiPairArbiRate(amount);
         require(profit > gasFee, 'no profit');
 
@@ -258,6 +258,10 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         return daiBalance + WDAIBalance;
     }
 
+    function amountAfterFee(uint256 amount) internal view returns (uint256) {
+        uint256 fee = IFeeApprover(FOT).feePercentX100();
+        return (amount * (1000 - fee)) / 1000;
+    }
     function wrapIfNecessary(address erc95Token, uint256 amount) internal {
         uint256 balance = IERC20(erc95Token).balanceOf(address(this));
         // console.log('enter wrap if necessary balance and amount', balance, amount);
