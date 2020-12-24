@@ -1,0 +1,37 @@
+async function sellCoreProfit(amount: ethers.BigNumber) {
+  const [, , sellCore] = await router.getAmountsOut(amount, [CORE, WETH, DAI])
+  const [buyWCore] = await router.getAmountsIn(amount, [WDAI, WCORE])
+  const profit = sellCore.gt(buyWCore) ? formatEther(sellCore.sub(buyWCore)) : '-' + formatEther(buyWCore.sub(sellCore))
+  return profit
+}
+
+async function sellWCoreProfit(amount: ethers.BigNumber) {
+  const [, sellPrice] = await router.getAmountsOut(amount, [WCORE, WDAI])
+  // console.log('dai sell wcore price', formatEther(sellPrice))
+  const [buyPrice] = await router.getAmountsIn(amount, [DAI, WETH, CORE])
+  // console.log('dai buy core price', formatEther(buyPrice))
+  const profit = sellPrice.gt(buyPrice)
+    ? formatEther(sellPrice.sub(buyPrice))
+    : '-' + formatEther(buyPrice.sub(sellPrice))
+  return profit
+}
+
+async function getBalances() {
+  const [dai, wdai, core, wcore] = await coreArbi.getBalances()
+  console.log(
+    `dai bal: ${formatEther(dai)}, wdai bal: ${formatEther(wdai)}, core bal: ${formatEther(
+      core
+    )}, wcore bal: ${formatEther(wcore)}`
+  )
+}
+async function approve() {
+  await coreArbi.approve()
+}
+
+async function checkTx() {
+  // const tx = '0xb83cea44d982449f0e00c0682c615098f98414e3ce6db978067c5951ab05359a'
+  const tx = '0xe9fe0b3058433fae70c2a50206b6629c8a615254b613f1c3cd494ddcb459fc78'
+  console.log(JSON.stringify(await provider.getTransactionReceipt(tx), undefined, 2))
+}
+
+// const functionToRun = checkTx

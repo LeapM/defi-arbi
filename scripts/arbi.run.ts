@@ -5,7 +5,7 @@ import FeeProvider from '../abis/IFeeApprover.json'
 import UniV2Router from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
 import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT } from '../constants/addresses'
 import { formatUnits } from 'ethers/lib/utils'
-import { exit } from 'process'
+import { exit, traceDeprecation } from 'process'
 import { delay } from './utils'
 const { parseEther, formatEther } = utils
 
@@ -15,127 +15,95 @@ const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const router = new Contract(ROUTER, UniV2Router.abi, signer)
 const feeProvider = new Contract(FOT, FeeProvider.abi, signer)
 const gasLimit = BigNumber.from('630000')
-async function sellCoreProfit(amount: ethers.BigNumber) {
-  const [, , sellCore] = await router.getAmountsOut(amount, [CORE, WETH, DAI])
-  const [buyWCore] = await router.getAmountsIn(amount, [WDAI, WCORE])
-  const profit = sellCore.gt(buyWCore) ? formatEther(sellCore.sub(buyWCore)) : '-' + formatEther(buyWCore.sub(sellCore))
-  return profit
-}
-
-async function sellWCoreProfit(amount: ethers.BigNumber) {
-  const [, sellPrice] = await router.getAmountsOut(amount, [WCORE, WDAI])
-  // console.log('dai sell wcore price', formatEther(sellPrice))
-  const [buyPrice] = await router.getAmountsIn(amount, [DAI, WETH, CORE])
-  // console.log('dai buy core price', formatEther(buyPrice))
-  const profit = sellPrice.gt(buyPrice)
-    ? formatEther(sellPrice.sub(buyPrice))
-    : '-' + formatEther(buyPrice.sub(sellPrice))
-  return profit
-}
 
 async function getEthPrice() {
   const [buyPrice] = await router.getAmountsIn(parseEther('1'), [DAI, WETH])
   return buyPrice
 }
 
-async function getBalances() {
-  const [dai, wdai, core, wcore] = await coreArbi.getBalances()
-  console.log(
-    `dai bal: ${formatEther(dai)}, wdai bal: ${formatEther(wdai)}, core bal: ${formatEther(
-      core
-    )}, wcore bal: ${formatEther(wcore)}`
-  )
-}
-async function approve() {
-  await coreArbi.approve()
-}
-
 enum Strategy {
   'WCORE',
   'CORE',
 }
-enum TradeStatus {
-  'Idle',
-  'Pending',
-  'Completed',
-  'Failed',
+enum TransactionStatus {
+  Pending,
+  Completed,
 }
-const lastTrade = {
+
+const lastTrade: Trade = {
   gasPrice: BigNumber.from(0),
   nonce: 0,
   timestamp: 0,
   tx: '',
-  status: TradeStatus.Idle,
   count: 0,
+  status: TransactionStatus.Completed,
+}
+
+type Trade = {
+  gasPrice: BigNumber
+  nonce: number
+  timestamp: number
+  tx: string
+  count: number
+  status: TransactionStatus
 }
 async function executeStrategy(
   strategy: Strategy,
   amount: BigNumber,
   gasCost: BigNumber,
   fot: BigNumber,
-  option: { gasPrice: BigNumber; gasLimit: BigNumber; nonce?: number }
+  option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
-  let tx
-  if (lastTrade.status == TradeStatus.Pending) {
-    const waitPeriod = 1000 * 60 * 3
-    const receipt = await provider.getTransactionReceipt(lastTrade.tx!)
-
-    if (!receipt) {
-      if (Date.now() - lastTrade.timestamp < waitPeriod) {
-        return
-      }
-
-      if (option.gasPrice.lt(lastTrade.gasPrice.mul(105).div(100))) {
-        return
-      }
-      option = { ...option, nonce: lastTrade.nonce }
-    }
-
-    lastTrade.status = TradeStatus.Completed
+  if (lastTrade.count > 10) {
+    console.log('execute more than 10 times, need to check if logic is sound')
   }
 
+  const transatcionCountMined = await signer.getTransactionCount()
+  const override = { ...option, nonce: transatcionCountMined }
+  console.log(
+    `executing strategy ${strategy.toString()} at nonce ${override.nonce} gasPrice: ${formatUnits(
+      override.gasPrice,
+      'gwei'
+    )}`
+  )
   try {
-    if (strategy == Strategy.CORE) {
-      tx = await coreArbi.sellCoreOnEthPair(amount, gasCost, 10, option)
-    }
-    if (strategy == Strategy.WCORE) {
-      tx = await coreArbi.sellCoreOnDaiPair(amount, gasCost, 10, option)
-    }
+    const tx =
+      strategy == Strategy.CORE
+        ? await coreArbi.sellCoreOnEthPair(amount, gasCost, fot, override)
+        : await coreArbi.sellCoreOnDaiPair(amount, gasCost, fot, override)
+
     lastTrade.count = lastTrade.count + 1
     lastTrade.timestamp = Date.now()
-    lastTrade.status = TradeStatus.Pending
     lastTrade.tx = tx.hash
     lastTrade.nonce = tx.nonce
     lastTrade.gasPrice = option.gasPrice
+    console.log(`strategy executed with tx ${lastTrade.tx}`)
   } catch (error) {
     console.error('failed to send transaction', error)
   }
 }
 
-interface arbiF {
-  (amount: BigNumber, fot: BigNumber): Promise<BigNumber>
-}
-
 type ArbiOption = {
-  f: arbiF
+  f: (amount: BigNumber, fot: BigNumber) => Promise<BigNumber>
   strategy: Strategy
 }
 
 async function findBestArbi(fot: BigNumber) {
-  const bestArbi: { amount: BigNumber; strategy?: Strategy; profit: BigNumber } = {
+  const bestArbi = {
     amount: BigNumber.from('0'),
-    strategy: undefined,
+    strategy: Strategy.CORE,
     profit: BigNumber.from('0'),
   }
+
+  const amounts = ['1', '1.5'].map((a) => parseEther(a))
+  const options: ArbiOption[] = [
+    { f: coreArbi.getDaiPairArbiRate, strategy: Strategy.WCORE },
+    {
+      f: coreArbi.getEthPairArbiRate,
+      strategy: Strategy.CORE,
+    },
+  ]
   try {
-    const amounts = ['1', '1.5'].map((a) => parseEther(a))
-    const options: ArbiOption[] = [
-      { f: coreArbi.getDaiPairArbiRate, strategy: Strategy.WCORE },
-      {
-        f: coreArbi.getEthPairArbiRate,
-        strategy: Strategy.CORE,
-      },
-    ]
     for (let amount of amounts) {
       for (let option of options) {
         const profit = await option.f(amount, fot)
@@ -153,14 +121,52 @@ async function findBestArbi(fot: BigNumber) {
     return bestArbi
   }
 }
+
+async function isLastTradeCompleted(trade: Trade) {
+  if (trade.status === TransactionStatus.Completed) {
+    return true
+  }
+  const receipt = await provider.getTransaction(lastTrade.tx!)
+
+  if (!receipt) {
+    // in case the tx was replaced by another tx, but lastTrade still have the old tx
+    trade.status = TransactionStatus.Completed
+    return true
+  }
+
+  if (receipt.confirmations > 0) {
+    trade.status = TransactionStatus.Completed
+    return true
+  }
+  return false
+}
+
 async function runCoreArbi() {
   while (true) {
     try {
+      await delay(20000)
+      console.log('process at ', Date.now().toLocaleString())
+      const completed = await isLastTradeCompleted(lastTrade)
+      if (!completed) {
+        // check how old the transaction is
+        const timeSinceSent = Date.now() - lastTrade.timestamp
+        const isTimeOut = timeSinceSent > 60 * 1000 * 2
+        if (!isTimeOut) {
+          continue
+        }
+      }
+
       const fot = await feeProvider.feePercentX100()
-      const gasPrice = await provider.getGasPrice()
-      console.log(
-        `${new Date().toLocaleString()} - gas price: ${formatUnits(gasPrice, 'gwei')} fot: ${formatUnits(fot, 'wei')}`
-      )
+      let gasPrice = await provider.getGasPrice()
+
+      if (lastTrade.status === TransactionStatus.Pending) {
+        if (gasPrice.lt(lastTrade.gasPrice)) {
+          gasPrice = lastTrade.gasPrice
+        }
+      }
+
+      console.log(` gas price: ${formatUnits(gasPrice, 'gwei')} fot: ${formatUnits(fot, 'wei')}`)
+
       const ethPrice = await getEthPrice()
       const gasCost = gasPrice.mul(gasLimit).mul(ethPrice).div(parseEther('1'))
       const option = {
@@ -169,16 +175,23 @@ async function runCoreArbi() {
       }
       const arbiPlan = await findBestArbi(fot)
       if (arbiPlan.profit.gt(gasCost)) {
+        if (lastTrade.status === TransactionStatus.Pending) {
+          console.log(
+            `pending transaction ${lastTrade.tx} was sent ${
+              (Date.now() - lastTrade.timestamp) / 1000
+            } seconds ago. replaced it`
+          )
+        }
         await executeStrategy(arbiPlan.strategy!, arbiPlan.amount, gasCost, fot, option)
       }
-      await delay(20000)
     } catch (error) {
       console.error(error)
     }
   }
 }
 
-runCoreArbi()
+const functionToRun = runCoreArbi
+functionToRun()
   .then((v: any) => {
     process.exit(0)
   })
