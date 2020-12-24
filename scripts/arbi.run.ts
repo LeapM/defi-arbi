@@ -6,6 +6,7 @@ import UniV2Router from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
 import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT } from '../constants/addresses'
 import { formatUnits } from 'ethers/lib/utils'
 import { exit } from 'process'
+import { delay } from './utils'
 const { parseEther, formatEther } = utils
 
 const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
@@ -14,14 +15,6 @@ const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const router = new Contract(ROUTER, UniV2Router.abi, signer)
 const feeProvider = new Contract(FOT, FeeProvider.abi, signer)
 const gasLimit = BigNumber.from('630000')
-const lastTrade = {
-  gasPrice: 0,
-  nonce: 0,
-  timestamp: 0,
-  tx: '',
-  status: '',
-  count: 0,
-}
 async function sellCoreProfit(amount: ethers.BigNumber) {
   const [, , sellCore] = await router.getAmountsOut(amount, [CORE, WETH, DAI])
   const [buyWCore] = await router.getAmountsIn(amount, [WDAI, WCORE])
@@ -56,13 +49,24 @@ async function getBalances() {
 async function approve() {
   await coreArbi.approve()
 }
-async function delay(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time))
-}
 
 enum Strategy {
   'WCORE',
   'CORE',
+}
+enum TradeStatus {
+  'Idle',
+  'Pending',
+  'Completed',
+  'Failed',
+}
+const lastTrade = {
+  gasPrice: BigNumber.from(0),
+  nonce: 0,
+  timestamp: 0,
+  tx: '',
+  status: TradeStatus.Idle,
+  count: 0,
 }
 async function executeStrategy(
   strategy: Strategy,
@@ -72,30 +76,40 @@ async function executeStrategy(
   option: { gasPrice: BigNumber; gasLimit: BigNumber; nonce?: number }
 ) {
   let tx
-  if (lastTrade.status == 'pending') {
-    const waitPeriod = 1000 * 60 * 2
-    if (Date.now() - lastTrade.timestamp < waitPeriod && option.gasPrice.lt(lastTrade.gasPrice)) {
-      const receipt = await provider.getTransactionReceipt(lastTrade.tx!)
-      if (!receipt) {
-        console.log('pending transaction, skip executing')
+  if (lastTrade.status == TradeStatus.Pending) {
+    const waitPeriod = 1000 * 60 * 3
+    const receipt = await provider.getTransactionReceipt(lastTrade.tx!)
+
+    if (!receipt) {
+      if (Date.now() - lastTrade.timestamp < waitPeriod) {
         return
       }
+
+      if (option.gasPrice.lt(lastTrade.gasPrice.mul(105).div(100))) {
+        return
+      }
+      option = { ...option, nonce: lastTrade.nonce }
     }
 
-    lastTrade.status = 'completed'
-    option.nonce = lastTrade.nonce
+    lastTrade.status = TradeStatus.Completed
   }
-  if (strategy == Strategy.CORE) {
-    tx = await coreArbi.sellCoreOnEthPair(amount, gasCost, 10, option)
+
+  try {
+    if (strategy == Strategy.CORE) {
+      tx = await coreArbi.sellCoreOnEthPair(amount, gasCost, 10, option)
+    }
+    if (strategy == Strategy.WCORE) {
+      tx = await coreArbi.sellCoreOnDaiPair(amount, gasCost, 10, option)
+    }
+    lastTrade.count = lastTrade.count + 1
+    lastTrade.timestamp = Date.now()
+    lastTrade.status = TradeStatus.Pending
+    lastTrade.tx = tx.hash
+    lastTrade.nonce = tx.nonce
+    lastTrade.gasPrice = option.gasPrice
+  } catch (error) {
+    console.error('failed to send transaction', error)
   }
-  if (strategy == Strategy.WCORE) {
-    tx = await coreArbi.sellCoreOnDaiPair(amount, gasCost, 10, option)
-  }
-  lastTrade.count = lastTrade.count + 1
-  lastTrade.timestamp = Date.now()
-  lastTrade.status = 'pending'
-  lastTrade.tx = tx.hash
-  lastTrade.nonce = tx.nonce
 }
 
 interface arbiF {
