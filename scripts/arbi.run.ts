@@ -54,8 +54,9 @@ async function executeStrategy(
   fot: BigNumber,
   option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
-  if (lastTrade.count > 5) {
-    console.log('execute more than 10 times, need to check if logic is sound')
+  const maxRuns = 10
+  if (lastTrade.count > maxRuns) {
+    console.log(`execute more than ${maxRuns} times, stopped to check if logic is sound`)
   }
 
   const transatcionCountMined = await signer.getTransactionCount()
