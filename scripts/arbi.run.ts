@@ -126,7 +126,7 @@ async function isLastTradeCompleted(trade: Trade) {
   if (trade.status === TransactionStatus.Completed) {
     return true
   }
-  const receipt = await provider.getTransaction(lastTrade.tx!)
+  const receipt = await provider.getTransaction(lastTrade.tx)
 
   if (!receipt) {
     // in case the tx was replaced by another tx, but lastTrade still have the old tx
@@ -145,7 +145,7 @@ async function runCoreArbi() {
   while (true) {
     try {
       await delay(20000)
-      console.log('process at ', Date.now().toLocaleString())
+      console.log('process at ', new Date().toLocaleString())
       const completed = await isLastTradeCompleted(lastTrade)
       if (!completed) {
         // check how old the transaction is
