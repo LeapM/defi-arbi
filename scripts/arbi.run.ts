@@ -54,7 +54,7 @@ async function executeStrategy(
   fot: BigNumber,
   option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
-  const maxRuns = 10
+  const maxRuns = 50
   if (lastTrade.count > maxRuns) {
     console.log(`execute more than ${maxRuns} times, stopped to check if logic is sound`)
   }
