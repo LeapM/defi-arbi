@@ -1,7 +1,7 @@
 import { SOR } from '@balancer-labs/sor'
 import { Contract, ethers, Wallet } from 'ethers'
 import BigNumber from 'bignumber.js'
-import { WETH, COREDAILP, BALANCER_PROXY, ETH } from '../constants/addresses'
+import { WETH, COREDAILP, BALANCER_PROXY, ETH, COREETHLP } from '../constants/addresses'
 import wallets from '../secret/wallet.json'
 import { ABI as BALANCER_API } from '../abis/balancer_proxy'
 import { delay } from './utils'
@@ -11,47 +11,85 @@ const {
 
 const poolsUrl = 'https://ipfs.fleek.co/ipns/balancer-team-bucket.storage.fleek.co/balancer-exchange/pools'
 const provider = new ethers.providers.InfuraProvider(undefined)
-const main = async (tokenOut: string) => {
-  let count = 0
-  let bestRate = new BigNumber(0)
-  while (count < 5) {
-    await delay(1000 * 60)
-    const gasPrice = (await provider.getGasPrice()).toString()
-    console.log('gasPrice', gasPrice)
-    const sor = new SOR(provider, new BigNumber(gasPrice), 3, 1, poolsUrl)
-    await sor.fetchPools()
-    await sor.setCostOutputToken(tokenOut)
-    const amountIn = new BigNumber(parseEther('1').toString())
-    const [swaps, amountOut] = await sor.getSwaps(WETH, tokenOut, 'swapExactIn', amountIn)
-    if (amountOut.gt(bestRate)) {
-      bestRate = amountOut
-    }
-    console.log(`Total Return: ${amountOut.toString()}, best rate:${bestRate.toString()}`)
-    if (amountOut.lt(new BigNumber(parseEther('12').toString()))) {
-      continue
-    }
 
-    const wallet = new Wallet(wallets.staker.key, provider)
-    let proxyContract = new Contract(BALANCER_PROXY, BALANCER_API, provider)
-    proxyContract = proxyContract.connect(wallet)
-    let tx = await proxyContract.multihopBatchSwapExactIn(
-      swaps,
-      ETH, // Note TokenIn is ETH address and not WETH as we are sending ETH
-      tokenOut,
-      amountIn.toString(),
-      amountOut.multipliedBy(100).dividedToIntegerBy(101).toString(), // This is the minimum amount out you will accept.
-      {
-        value: amountIn.toString(), // Here we send ETH in place of WETH
-        gasPrice,
+async function execute(
+  swaps: any,
+  tokenOut: string,
+  amountIn: BigNumber,
+  amountOut: BigNumber,
+  gasPrice: ethers.BigNumber
+) {
+  console.log('executing...')
+  const wallet = new Wallet(wallets.nulwang.key, provider)
+  let proxyContract = new Contract(BALANCER_PROXY, BALANCER_API, provider)
+  proxyContract = proxyContract.connect(wallet)
+  let tx = await proxyContract.multihopBatchSwapExactIn(
+    swaps,
+    ETH,
+    tokenOut,
+    amountIn.toString(),
+    amountOut.multipliedBy(100).dividedToIntegerBy(101).toString(),
+    {
+      value: amountIn.toString(),
+      gasPrice,
+    }
+  )
+  console.log(`Tx Hash: ${tx.hash}`)
+  await tx.wait()
+}
+
+const main = async () => {
+  let count = 0
+  const options = [
+    {
+      key: 'COREDAI',
+      tokenOut: COREDAILP,
+      amountIn: new BigNumber(parseEther('2').toString()),
+      amoutOutRequired: new BigNumber(parseEther('30').toString()), //0.066
+      bestRate: new BigNumber(0),
+    },
+    {
+      key: 'COREETH',
+      tokenOut: COREETHLP,
+      amountIn: new BigNumber(parseEther('2').toString()),
+      amoutOutRequired: new BigNumber(parseEther('1.8').toString()), //1.1111
+      bestRate: new BigNumber(0),
+    },
+  ]
+  while (count < 3) {
+    try {
+      await delay(1000 * 30)
+      const gasPrice = await provider.getGasPrice()
+      const sor = new SOR(provider, new BigNumber(gasPrice.toString()), 3, 1, poolsUrl)
+      await sor.fetchPools()
+
+      for (const option of options) {
+        const { tokenOut, amountIn, amoutOutRequired } = option
+        await sor.setCostOutputToken(tokenOut)
+        const [swaps, amountOut] = await sor.getSwaps(WETH, tokenOut, 'swapExactIn', amountIn)
+        if (amountOut.gt(option.bestRate)) {
+          option.bestRate = amountOut
+        }
+        console.log(`${option.key} Total Return: ${amountOut.toString()}, best rate:${option.bestRate.toString()}`)
+
+        if (gasPrice.gt(parseUnits('100', 'gwei'))) {
+          console.log('gas is too expensive')
+          continue
+        }
+
+        if (amountOut.lt(amoutOutRequired)) {
+          continue
+        }
+
+        count += 1
+        await execute(swaps, tokenOut, amountIn, amountOut, gasPrice.mul(102).div(100))
       }
-    )
-    console.log(`Tx Hash: ${tx.hash}`)
-    await tx.wait()
-    count += 1
+    } finally {
+    }
   }
 }
 
-main(COREDAILP)
+main()
   .then(() => process.exit(0))
   .catch((error) => {
     console.error(error)

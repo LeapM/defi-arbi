@@ -191,7 +191,13 @@ async function runCoreArbi() {
   }
 }
 
-const functionToRun = runCoreArbi
+async function findTransaction() {
+  const tx = '0x9de30f9c94ea8f51ed90d7b7028cdb63b3bd21a5fc578070f5e6a4de7d1c1bad'
+  const receipt = await provider.getTransaction(tx)
+  console.log(receipt)
+}
+const functionToRun = findTransaction
+// const functionToRun = runCoreArbi
 functionToRun()
   .then((v: any) => {
     process.exit(0)

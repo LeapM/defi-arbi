@@ -8,17 +8,10 @@ import IUniswapV2Router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.j
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { sign } from 'crypto'
 import { formatUnits, parseUnits } from 'ethers/lib/utils'
+import { CORE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, WHALE, WWBTC } from '../constants/addresses'
 const {
   utils: { formatEther, parseEther },
 } = ethers
-
-const WHALE = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'
-const ME = '0xB1d2339375Fd56Aa47ed31948D6d779a1A803f56'
-const CORE = '0x62359Ed7505Efc61FF1D56fEF82158CcaffA23D7'
-const ROUTER = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
-const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-const WDAI = '0x00a66189143279b6DB9b77294688F47959F37642'
-const WCORE = '0x17B8c1A92B66b1CF3092C5d223Cb3a129023b669'
 
 describe('CORE ARBI Test', () => {
   let coreArbi: Contract
@@ -87,11 +80,11 @@ describe('CORE ARBI Test', () => {
     // console.log(parseEther(approved[0]), parseEther(approved[1]))
   })
 
-  it.only('execute sell on dai pair', async () => {
+  it('execute sell on dai pair', async () => {
     await impersonate(ME)
     await coreArbi.approve()
 
-    const transaction = await coreArbi.sellCoreOnDaiPair(parseEther('0.5'), parseEther('10'), 10)
+    const transaction = await coreArbi.sellCoreOnDaiPair(parseEther('0.5'), parseEther('10'))
     await stopImpersonate(ME)
     const transactionInfo = await ethers.provider.getTransactionReceipt(transaction.hash)
     console.log(formatUnits(transactionInfo.cumulativeGasUsed, 'wei'), formatUnits(transactionInfo.gasUsed, 'wei'))
@@ -155,5 +148,26 @@ describe('CORE ARBI Test', () => {
     //   amount
     // )
     await stopImpersonate(ME)
+  })
+
+  it.only('test general arbi profit', async () => {
+    const amount = parseEther('0.5')
+    // const sellPath = [CORE, WETH, DAI]
+    // const buyPath = [WDAI, WCORE]
+    const sellPath = [WCORE, WDAI]
+    const buyPath = [DAI, WETH, CORE]
+    // const sellPath = [CORE, WWBTC]
+    // const buyPath = [WBTC, WETH, CORE]
+    // const sellPath = [CORE, WETH, WBTC]
+    // const buyPath = [WWBTC, CORE]
+    const profit = await coreArbi.getArbiProfit(sellPath, buyPath, amount)
+    await impersonate(ME)
+    await coreArbi.approve()
+
+    const transaction = await coreArbi.executeArbi(sellPath, buyPath, parseEther('0.5'), parseEther('10'))
+    await stopImpersonate(ME)
+    const transactionInfo = await ethers.provider.getTransactionReceipt(transaction.hash)
+    console.log(formatUnits(transactionInfo.cumulativeGasUsed, 'wei'), formatUnits(transactionInfo.gasUsed, 'wei'))
+    expect(transactionInfo.gasUsed).to.eq(parseUnits('517916', 'wei'))
   })
 })

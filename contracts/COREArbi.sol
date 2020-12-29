@@ -114,7 +114,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
             uint256 dai,
             uint256 wdai,
             uint256 core,
-            uint256 wcore
+            uint256 wcore   
         )
     {
         dai = IERC20(DAI).balanceOf(address(this));
@@ -123,6 +123,18 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         wcore = IERC20(WCORE).balanceOf(address(this));
     }
 
+    function getArbiProfit( address[] memory sellPath, address[] memory buyPath, 
+    uint256 amount
+    ) public view returns (uint256 profit) {
+        uint256[] memory sellPrices = UniswapV2Library.getAmountsOut(FACTORY, amount, sellPath);
+        uint256 outAmount = amountAfterFee(sellPrices[sellPrices.length -1]);
+
+        uint256[] memory buyPrice= UniswapV2Library.getAmountsIn(FACTORY, amount, buyPath);
+
+        uint256 inAmount = buyPrice[0];
+        // console.log(daiOut, daiIn);
+        return outAmount > inAmount ? outAmount- inAmount: 0;
+    }
     function getEthPairArbiRate(uint256 amount ) public view returns (uint256 arbiRate) {
         address[] memory core2weth = new address[](3);
         core2weth[0] = CORE;
@@ -196,7 +208,24 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
         // console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
     }
+    function executeArbi(address[] memory sellPath, address[] memory buyPath, uint256 amount,  uint256 cost) public onlyOwner {
+        uint256 profit = getArbiProfit(sellPath, buyPath, amount);
+        require(profit > cost, 'no profit');
+        wrapIfNecessary(sellPath[0], amount);
+         IUniSwapRouter(ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amount,
+            0,
+            sellPath,
+            address(this),
+            block.timestamp
+        );
+        uint256[] memory prices = UniswapV2Library.getAmountsIn(FACTORY, amount, buyPath);
+        // console.log('required dai amount', prices[0]);
+        unwrapIfNecessary(buyPath[0], sellPath[sellPath.length -1], prices[0]);
 
+        IUniSwapRouter(ROUTER).swapTokensForExactTokens(amount, uint256(-1), buyPath, address(this), block.timestamp);
+
+    }
     function sellCoreOnDaiPair(uint256 amount, uint256 gasFee) public {
         uint256 profit = getDaiPairArbiRate(amount);
         require(profit > gasFee, 'no profit');
