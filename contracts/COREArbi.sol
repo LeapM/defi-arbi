@@ -9,7 +9,9 @@ import 'hardhat/console.sol';
 interface IFeeApprover {
     function feePercentX100() external view returns (uint256);
 }
-
+interface IChi {
+    function freeFromUpTo(address from, uint256 value) external returns (uint256);
+}
 interface IUniSwapRouter {
     function swapExactTokensForTokens(
         uint256 amountIn,
@@ -76,8 +78,13 @@ contract COREArbi is Initializable, OwnableUpgradeable {
     address constant WCORE = 0x17B8c1A92B66b1CF3092C5d223Cb3a129023b669;
     address constant FOT = 0x2e2A33CECA9aeF101d679ed058368ac994118E7a;
     address constant ME = 0xB1d2339375Fd56Aa47ed31948D6d779a1A803f56;
+    IChi constant chi = IChi(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
     uint8 public version;
 
+    modifier discountCHI {
+        _;
+        chi.freeFromUpTo(msg.sender, 11);
+}
     function initialize() public initializer {
         OwnableUpgradeable.__Ownable_init();
         version = 0x1;
@@ -208,7 +215,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
         // console.log('execution result', coreBalanceAfter - coreBalanceBefore, daiBalanceAfter - daiBalanceBefore);
     }
-    function executeArbi(address[] memory sellPath, address[] memory buyPath, uint256 amount,  uint256 cost) public onlyOwner {
+    function executeArbi(address[] memory sellPath, address[] memory buyPath, uint256 amount,  uint256 cost) public onlyOwner discountCHI {
         uint256 profit = getArbiProfit(sellPath, buyPath, amount);
         require(profit > cost, 'no profit');
         wrapIfNecessary(sellPath[0], amount);

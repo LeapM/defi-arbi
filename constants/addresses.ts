@@ -15,5 +15,5 @@ export const COREBTCLP = '0x6fad7d44640c5cd0120deec0301e8cf850becb68'
 export const COREDAILP = '0x01ac08e821185b6d87e68c67f9dc79a8988688eb'
 export const BALANCER_PROXY = '0x3E66B66Fd1d0b02fDa6C811Da9E0547970DB2f21'
 export const ETH = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-
+export const CHI = '0x0000000000004946c0e9F43F4Dee607b0eF1fA1c'
 export const FOT = '0x2e2A33CECA9aeF101d679ed058368ac994118E7a'

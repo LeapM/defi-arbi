@@ -7,8 +7,9 @@ import { ABI as WCORE_ABI } from './ABI/WCORE'
 import IUniswapV2Router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.json'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { sign } from 'crypto'
+import { abi as chiAbi } from '../abis/chi.json'
 import { formatUnits, parseUnits } from 'ethers/lib/utils'
-import { CORE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, WHALE, WWBTC } from '../constants/addresses'
+import { CHI, CORE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, WHALE, WWBTC } from '../constants/addresses'
 const {
   utils: { formatEther, parseEther },
 } = ethers
@@ -18,25 +19,24 @@ describe('CORE ARBI Test', () => {
   let core: Contract
   let uniswapRouter: Contract
   let wcore: Contract
+  let chi: Contract
   let signers: SignerWithAddress[]
   beforeEach(async () => {
     await resetNetwork()
 
+    signers = await ethers.getSigners()
     await impersonate(ME)
+
     const signer = ethers.provider.getSigner(ME)
-    console.log(formatEther(await signer.getBalance()))
     const COREArbi = await ethers.getContractFactory('COREArbi', signer)
 
     coreArbi = await upgrades.deployProxy(COREArbi)
-    console.log(formatUnits(coreArbi.deployTransaction.gasLimit, 'wei'))
-    console.log(formatEther(await signer.getBalance()))
     await coreArbi.deployed()
-    console.log(formatUnits(await signer.getBalance()))
-
     core = new Contract(CORE, ERC20_ABI, ethers.provider)
     wcore = new Contract(WCORE, WCORE_ABI, ethers.provider)
-    signers = await ethers.getSigners()
-
+    chi = new Contract(CHI, chiAbi, signer)
+    await chi.mint(140)
+    await chi.approve(coreArbi.address, 140)
     await core.connect(signer).transfer(coreArbi.address, parseEther('4'))
     await stopImpersonate(ME)
 
@@ -168,6 +168,8 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
     const transactionInfo = await ethers.provider.getTransactionReceipt(transaction.hash)
     console.log(formatUnits(transactionInfo.cumulativeGasUsed, 'wei'), formatUnits(transactionInfo.gasUsed, 'wei'))
+    const balance = await chi.balanceOf(ME)
+    console.log(balance.toString())
     expect(transactionInfo.gasUsed).to.eq(parseUnits('517916', 'wei'))
   })
 })

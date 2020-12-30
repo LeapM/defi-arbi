@@ -1,9 +1,9 @@
 {
   "manifestVersion": "3.1",
   "impls": {
-    "e9a472af1913c9f6f14ef80e2c70d8a6b6904e2cb993ef33908b53f4624eb2ca": {
+    "67e276fbc7f28bb3810c62e33dc4234665a89a7125fffa4c201652fc732f7411": {
       "address": "0x67CF9C4e8d03D966E331Cd8835650A48bA927DF4",
-      "txHash": "0x36fe02ff4bc3927260372d67aa9f56bb038944e79ceef2f562fddf6bee5608ef",
+      "txHash": "0x41474c0f5e37bd4415afe30d7c86a05803d0ac1f0f25ab1d5a23f00d9620f4c0",
       "layout": {
         "storage": [
           {
@@ -40,7 +40,7 @@
             "contract": "COREArbi",
             "label": "version",
             "type": "t_uint8",
-            "src": "contracts/COREArbi.sol:79"
+            "src": "contracts/COREArbi.sol:82"
           }
         ],
         "types": {

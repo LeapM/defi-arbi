@@ -5,7 +5,6 @@ import FeeProvider from '../abis/IFeeApprover.json'
 import UniV2Router from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
 import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT } from '../constants/addresses'
 import { formatUnits } from 'ethers/lib/utils'
-import { exit, traceDeprecation } from 'process'
 import { delay } from './utils'
 const { parseEther, formatEther } = utils
 
@@ -54,11 +53,6 @@ async function executeStrategy(
   fot: BigNumber,
   option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
-  const maxRuns = 50
-  if (lastTrade.count > maxRuns) {
-    console.log(`execute more than ${maxRuns} times, stopped to check if logic is sound`)
-  }
-
   const transatcionCountMined = await signer.getTransactionCount()
   const override = { ...option, nonce: transatcionCountMined }
   console.log(
@@ -196,8 +190,8 @@ async function findTransaction() {
   const receipt = await provider.getTransaction(tx)
   console.log(receipt)
 }
-const functionToRun = findTransaction
-// const functionToRun = runCoreArbi
+// const functionToRun = findTransaction
+const functionToRun = runCoreArbi
 functionToRun()
   .then((v: any) => {
     process.exit(0)

@@ -72,7 +72,7 @@ const main = async () => {
         }
         console.log(`${option.key} Total Return: ${amountOut.toString()}, best rate:${option.bestRate.toString()}`)
 
-        if (gasPrice.gt(parseUnits('100', 'gwei'))) {
+        if (gasPrice.gt(parseUnits('130', 'gwei'))) {
           console.log('gas is too expensive')
           continue
         }
