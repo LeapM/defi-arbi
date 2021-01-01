@@ -4,7 +4,7 @@ import { ethers, upgrades } from 'hardhat'
 import { getTransactionGas, impersonate, resetNetwork, stopImpersonate } from './utils'
 import { abi as chiAbi } from '../abis/chi.json'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
-import { CHI, CORE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, WHALE, WWBTC } from '../constants/addresses'
+import { CHI, CORE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, ETHWHALE, WWBTC } from '../constants/addresses'
 import { formatUnits, parseUnits } from 'ethers/lib/utils'
 const {
   utils: { formatEther, parseEther },

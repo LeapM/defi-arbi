@@ -1,9 +1,9 @@
 {
   "manifestVersion": "3.1",
   "impls": {
-    "67e276fbc7f28bb3810c62e33dc4234665a89a7125fffa4c201652fc732f7411": {
-      "address": "0x67CF9C4e8d03D966E331Cd8835650A48bA927DF4",
-      "txHash": "0x41474c0f5e37bd4415afe30d7c86a05803d0ac1f0f25ab1d5a23f00d9620f4c0",
+    "c4450257d64e5141e880d18eab28d23970bca2bdd51a3242eca06fa4ceb28169": {
+      "address": "0xCe056264C0d21Ec357361C254b5D44A84Dc2FAcB",
+      "txHash": "0xd46a22a60af2a5cd5db3ee6830b87fdf830b9b850fc402a8c14569010e03795a",
       "layout": {
         "storage": [
           {
@@ -40,7 +40,7 @@
             "contract": "COREArbi",
             "label": "version",
             "type": "t_uint8",
-            "src": "contracts/COREArbi.sol:82"
+            "src": "contracts/COREArbi.sol:81"
           }
         ],
         "types": {
@@ -64,7 +64,7 @@
     }
   },
   "admin": {
-    "address": "0x3eA88c55485119460d1f171cae65f2BB1102D46b",
-    "txHash": "0xcafbb057acb31571883e6b13f6defe3584a9de3b9c4c7d9884d3473c8758bca8"
+    "address": "0xb51FEb96Be5685991982a689BdeCC99f05F42713",
+    "txHash": "0x99f2335382602f87b8ea2996d101dcefd286625f37f111cf88cae58c6063a47c"
   }
 }

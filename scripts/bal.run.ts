@@ -45,18 +45,18 @@ const main = async () => {
       key: 'COREDAI',
       tokenOut: COREDAILP,
       amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('30').toString()), //0.066
+      amoutOutRequired: new BigNumber(parseEther('29').toString()), //0.068
       bestRate: new BigNumber(0),
     },
     {
       key: 'COREETH',
       tokenOut: COREETHLP,
       amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('1.8').toString()), //1.1111
+      amoutOutRequired: new BigNumber(parseEther('2.1').toString()), //0.95
       bestRate: new BigNumber(0),
     },
   ]
-  while (count < 3) {
+  while (count < 5) {
     try {
       await delay(1000 * 30)
       const gasPrice = await provider.getGasPrice()
@@ -72,7 +72,7 @@ const main = async () => {
         }
         console.log(`${option.key} Total Return: ${amountOut.toString()}, best rate:${option.bestRate.toString()}`)
 
-        if (gasPrice.gt(parseUnits('130', 'gwei'))) {
+        if (gasPrice.gt(parseUnits('200', 'gwei'))) {
           console.log('gas is too expensive')
           continue
         }
@@ -84,8 +84,7 @@ const main = async () => {
         count += 1
         await execute(swaps, tokenOut, amountIn, amountOut, gasPrice.mul(102).div(100))
       }
-    } finally {
-    }
+    } catch (error) {}
   }
 }
 

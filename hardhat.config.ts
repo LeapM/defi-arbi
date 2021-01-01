@@ -8,7 +8,7 @@ task('accounts', 'Prints the, list of accounts', async (args, hre) => {
   accounts.forEach((account) => console.log(account.address))
 })
 
-const blockNumber = 11458352
+const blockNumber = 11563767
 const config: HardhatUserConfig = {
   solidity: {
     version: '0.6.6',
