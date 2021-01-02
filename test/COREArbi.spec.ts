@@ -9,6 +9,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { abi as chiAbi } from '../abis/chi.json'
 import { CHI, CORE, COREWHALE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, ETHWHALE, WWBTC } from '../constants/addresses'
 import { ONE_BTC } from '../constants/baseUnits'
+import { formatUnits, parseUnits } from 'ethers/lib/utils'
 const {
   utils: { formatEther, parseEther },
 } = ethers
@@ -23,7 +24,6 @@ describe('CORE ARBI Test', () => {
   let core: Contract
   let uniswapRouter: Contract
   let wcore: Contract
-  let chi: Contract
   let signers: SignerWithAddress[]
   beforeEach(async () => {
     await resetNetwork()
@@ -39,9 +39,6 @@ describe('CORE ARBI Test', () => {
     await coreArbi.deployed()
     await stopImpersonate(ME)
 
-    // chi = new Contract(CHI, chiAbi, signer)
-    // await chi.mint(140)
-    // await chi.approve(coreArbi.address, 10000000)
     await impersonate(COREWHALE)
     core = core.connect(ethers.provider.getSigner(COREWHALE))
     await core.transfer(coreArbi.address, parseEther('4'))
@@ -55,29 +52,34 @@ describe('CORE ARBI Test', () => {
 
   it('approve underlying token', async () => {
     await impersonate(ME)
-    const approved = await approve(coreArbi)
+    await approve(coreArbi)
     await stopImpersonate(ME)
   })
 
-  it('getArbiProfit works properly', async () => {
+  it.only('getArbiProfit works properly', async () => {
     const amount = parseEther('0.5')
+    let ethDaiProfit = await coreArbi.getArbiProfit([CORE, WETH, DAI], [WDAI, WCORE], amount)
+    expect(ethDaiProfit).to.eq(0)
+    await whalePump(uniswapRouter, parseEther('100'))
+    ethDaiProfit = await coreArbi.getArbiProfit([CORE, WETH, DAI], [WDAI, WCORE], amount)
+    expect(ethDaiProfit).to.eq(parseEther('30.440926208552060053'))
 
     const daiEthProfit = await coreArbi.getArbiProfit([WCORE, WDAI], [DAI, WETH, CORE], amount)
-    expect(daiEthProfit).to.eq('12172106965322309438')
-
-    const ethDaiProfit = await coreArbi.getArbiProfit([CORE, WETH, DAI], [WDAI, WCORE], amount)
-    expect(ethDaiProfit).to.eq(0)
+    console.log(formatEther(daiEthProfit))
+    expect(daiEthProfit).to.eq(0)
 
     const btcEthArbiProfit = await coreArbi.getArbiProfit([CORE, WWBTC], [WBTC, WETH, CORE], amount)
     expect(btcEthArbiProfit).to.eq(0)
 
     const ethBtcArbiProfit = await coreArbi.getArbiProfit([CORE, WETH, WBTC], [WWBTC, CORE], amount)
-    expect(ethBtcArbiProfit).to.eq(0)
+    expect(ethBtcArbiProfit).to.eq(65085)
   })
 
   it('getArbiProfit works properly after core eth pump', async () => {
-    await whalePump(uniswapRouter)
     const amount = parseEther('0.5')
+    await coreArbi.getArbiProfit([WCORE, WDAI], [DAI, WETH, CORE], amount)
+
+    await whalePump(uniswapRouter)
 
     const daiEthProfit = await coreArbi.getArbiProfit([WCORE, WDAI], [DAI, WETH, CORE], amount)
     expect(daiEthProfit).to.eq('0')
@@ -123,7 +125,7 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
-  it('execute sell on eth dai arbi successfully', async () => {
+  it('execute eth dai arbi successfully', async () => {
     await whalePump(uniswapRouter)
     await impersonate(ME)
     await approve(coreArbi)
@@ -166,7 +168,7 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
-  it.only('execute btc eth arbi successfully', async () => {
+  it('execute btc eth arbi successfully', async () => {
     const amount = parseEther('0.5')
     const cost = ONE_BTC.div(10000)
     const sellPath = [CORE, WWBTC]
@@ -188,31 +190,65 @@ describe('CORE ARBI Test', () => {
     expect(wwbtcBalanceAfter).to.eq('0')
     await stopImpersonate(ME)
   })
-  it('only owner can withdraw asset'),
-    async () => {
-      await coreArbi.withdrawTokens([CORE], [parseEther('1')], ME)
-    }
-  it.only('can withdraw asset successfully', async () => {
+
+  it('can withdraw asset successfully', async () => {
     await impersonate(ME)
-    const balanceBefore = await getBalance(CORE, ME)
     await coreArbi.withdrawTokens([CORE], [parseEther('1')], ME)
     const balanceAfter = await getBalance(CORE, ME)
-    console.log(formatEther(balanceBefore), formatEther(balanceAfter))
+    expect(balanceAfter).to.eq(parseEther('0.99'))
     await stopImpersonate(ME)
   })
 
-  it('wrap core without fot successuflly', async () => {
-    const amount = parseEther('0.5')
+  it('should burn less gas', async () => {
+    await whalePump(uniswapRouter)
     await impersonate(ME)
-    const signer = ethers.provider.getSigner(ME)
-    await core.connect(signer).approve(WCORE, amount)
-    await wcore.connect(signer).wrap(ME, amount)
-    const wamount = await wcore.balanceOf(ME)
-    expect(amount).to.equal(wamount)
-    // same amount core is unsrapped
-    await expect(() => wcore.connect(signer).unwrap(amount)).to.changeTokenBalance(core, signer, amount)
+    await approve(coreArbi)
+    const amount = parseEther('0.5')
+    const costInDai = parseEther('10')
+    const sellPath = [CORE, WETH, DAI]
+    const buyPath = [WDAI, WCORE]
+    const tx = await coreArbi.executeArbi(sellPath, buyPath, false, amount, costInDai)
+    const gasused = await getTransactionGas(tx)
+    expect(gasused).to.eq(485657)
     await stopImpersonate(ME)
   })
+
+  it('chi can save gas', async () => {
+    await whalePump(uniswapRouter)
+    await impersonate(ME)
+
+    const chi = new Contract(CHI, chiAbi, ethers.provider.getSigner(ME))
+    await chi.mint(140)
+    await chi.approve(coreArbi.address, 10000000)
+    await approve(coreArbi)
+
+    const amount = parseEther('0.5')
+    const costInDai = parseEther('10')
+    const sellPath = [CORE, WETH, DAI]
+    const buyPath = [WDAI, WCORE]
+    const burnChiGas = parseUnits('101', 'gwei')
+    const tx = await coreArbi.executeArbi(sellPath, buyPath, false, amount, costInDai, {
+      gasPrice: burnChiGas,
+    })
+    const gasused = await getTransactionGas(tx)
+    const savedGas = parseUnits('485739', 'wei').sub(gasused)
+    expect(savedGas).to.eq('170284')
+    expect(savedGas.mul(burnChiGas).div(11)).to.eq(parseEther('0.001563516727272727'))
+    await stopImpersonate(ME)
+  })
+
+  // it('wrap core without fot successuflly', async () => {
+  //   const amount = parseEther('0.5')
+  //   await impersonate(ME)
+  //   const signer = ethers.provider.getSigner(ME)
+  //   await core.connect(signer).approve(WCORE, amount)
+  //   await wcore.connect(signer).wrap(ME, amount)
+  //   const wamount = await wcore.balanceOf(ME)
+  //   expect(amount).to.equal(wamount)
+  //   // same amount core is unsrapped
+  //   await expect(() => wcore.connect(signer).unwrap(amount)).to.changeTokenBalance(core, signer, amount)
+  //   await stopImpersonate(ME)
+  // })
 })
 async function whalePump(uniswapRouter: Contract, amount: BigNumber = parseEther('500')) {
   await impersonate(ETHWHALE)

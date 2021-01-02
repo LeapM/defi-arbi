@@ -82,7 +82,9 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
     modifier discountCHI {
         _;
-        chi.freeFromUpTo(msg.sender, 11);
+        if (tx.gasprice > 100e9) {
+            chi.freeFromUpTo(msg.sender, 11);
+        }
     }
 
     function initialize() public initializer {
@@ -114,16 +116,13 @@ contract COREArbi is Initializable, OwnableUpgradeable {
     public view returns (uint256 profit) {
         uint256[] memory sellPrices = UniswapV2Library.getAmountsOut(FACTORY, amount, sellPath);
         uint256 outAmount = amountAfterFee(sellPrices[sellPrices.length - 1]);
-        console.log(outAmount);
         uint256[] memory buyPrice= UniswapV2Library.getAmountsIn(FACTORY, amount, buyPath);
-
         uint256 inAmount = buyPrice[0];
-        console.log(inAmount);
         return outAmount > inAmount ? outAmount - inAmount : 0;
     }
 
-    function executeArbi(address[] memory sellPath, address[] memory buyPath, bool wrapFirst,
-    uint256 amount, uint256 cost) public onlyOwner discountCHI {
+    function executeArbi(address[] calldata sellPath, address[] calldata buyPath, bool wrapFirst,
+    uint256 amount, uint256 cost) external onlyOwner discountCHI {
         uint256 profit = getArbiProfit(sellPath, buyPath, amount);
         require(profit > cost, "no profit");
         if (wrapFirst) {
@@ -141,6 +140,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         );
 
         uint256[] memory prices = UniswapV2Library.getAmountsIn(FACTORY, amount, buyPath);
+
         if (wrapFirst) {
             unwrapIfNecessary(buyPath[0], sellPath[sellPath.length - 1], prices[0]);
         } else {

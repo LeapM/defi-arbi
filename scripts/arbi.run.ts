@@ -3,9 +3,10 @@ import deployer from '../secret/deployer.json'
 import COREArbi from '../abis/COREArbi.json'
 import FeeProvider from '../abis/IFeeApprover.json'
 import UniV2Router from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
-import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT } from '../constants/addresses'
+import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT, WBTC, WWBTC } from '../constants/addresses'
 import { formatUnits } from 'ethers/lib/utils'
 import { delay } from './utils'
+import { ONE_BTC } from '../constants/baseUnits'
 const { parseEther, formatEther } = utils
 
 const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
@@ -14,16 +15,47 @@ const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const router = new Contract(ROUTER, UniV2Router.abi, signer)
 const feeProvider = new Contract(FOT, FeeProvider.abi, signer)
 const gasLimit = BigNumber.from('630000')
+const arbiPlans = [
+  {
+    sellPath: [CORE, WETH, DAI],
+    buyPath: [WDAI, WCORE],
+    wrapFirst: false,
+    profitUnit: 'DAI',
+    name: 'eth-dai arbi',
+  },
+  {
+    sellPath: [WCORE, WDAI],
+    buyPath: [DAI, WETH, CORE],
+    profitUnit: 'DAI',
+    wrapFirst: true,
+    name: 'dai-eth arbi',
+  },
+  {
+    sellPath: [CORE, WETH, WBTC],
+    buyPath: [WWBTC, CORE],
+    profitUnit: 'BTC',
+    wrapFirst: false,
+    name: 'eth-btc arbi',
+  },
+  {
+    sellPath: [CORE, WWBTC],
+    buyPath: [WBTC, WETH, CORE],
+    profitUnit: 'BTC',
+    wrapFirst: true,
+    name: 'btc-eth arbi',
+  },
+]
 
+type ArbiPlan = typeof arbiPlans[0]
 async function getEthPrice() {
   const [buyPrice] = await router.getAmountsIn(parseEther('1'), [DAI, WETH])
   return buyPrice
 }
-
-enum Strategy {
-  'WCORE',
-  'CORE',
+async function getBtcPrice() {
+  const [buyPrice] = await router.getAmountsIn(ONE_BTC, [DAI, WETH, WBTC])
+  return buyPrice
 }
+
 enum TransactionStatus {
   Pending,
   Completed,
@@ -47,25 +79,19 @@ type Trade = {
   status: TransactionStatus
 }
 async function executeStrategy(
-  strategy: Strategy,
   amount: BigNumber,
   gasCost: BigNumber,
-  fot: BigNumber,
+  plan: ArbiPlan,
   option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
   const transatcionCountMined = await signer.getTransactionCount()
   const override = { ...option, nonce: transatcionCountMined }
   console.log(
-    `executing strategy ${strategy.toString()} at nonce ${override.nonce} gasPrice: ${formatUnits(
-      override.gasPrice,
-      'gwei'
-    )}`
+    `executing strategy ${plan.name} at nonce ${override.nonce} gasPrice: ${formatUnits(override.gasPrice, 'gwei')}`
   )
+  return
   try {
-    const tx =
-      strategy == Strategy.CORE
-        ? await coreArbi.sellCoreOnEthPair(amount, gasCost, fot, override)
-        : await coreArbi.sellCoreOnDaiPair(amount, gasCost, fot, override)
+    const tx = await coreArbi.executeArbi(plan.sellPath, plan.sellPath, plan.wrapFirst, amount, gasCost, override)
 
     lastTrade.count = lastTrade.count + 1
     lastTrade.timestamp = Date.now()
@@ -78,40 +104,32 @@ async function executeStrategy(
   }
 }
 
-type ArbiOption = {
-  f: (amount: BigNumber, fot: BigNumber) => Promise<BigNumber>
-  strategy: Strategy
-}
-
-async function findBestArbi(fot: BigNumber) {
+async function findBestArbi(ethPrice: BigNumber, btcPrice: BigNumber) {
   const bestArbi = {
     amount: BigNumber.from('0'),
-    strategy: Strategy.CORE,
+    plan: arbiPlans[0],
     profit: BigNumber.from('0'),
   }
 
   const amounts = ['1', '1.5'].map((a) => parseEther(a))
-  const options: ArbiOption[] = [
-    { f: coreArbi.getDaiPairArbiRate, strategy: Strategy.WCORE },
-    {
-      f: coreArbi.getEthPairArbiRate,
-      strategy: Strategy.CORE,
-    },
-  ]
   try {
     for (let amount of amounts) {
-      for (let option of options) {
-        const profit = await option.f(amount, fot)
+      for (let plan of arbiPlans) {
+        let profit = (await coreArbi.getArbiProfit(plan.sellPath, plan.buyPath, amount)) as BigNumber
+        if (plan.profitUnit === 'BTC') {
+          profit = profit.mul(btcPrice).div(ONE_BTC)
+        }
         if (profit.gt(0)) {
-          console.log(`profit: ${formatEther(profit)} amount: ${formatEther(amount)}, strategy: ${option.strategy}`)
+          console.log(`profit: ${formatEther(profit)} amount: ${formatEther(amount)}, strategy: ${plan.name}`)
         }
         if (profit.gt(bestArbi.profit)) {
           bestArbi.profit = profit
           bestArbi.amount = amount
-          bestArbi.strategy = option.strategy
+          bestArbi.plan = { ...plan }
         }
       }
     }
+  } catch {
   } finally {
     return bestArbi
   }
@@ -151,24 +169,27 @@ async function runCoreArbi() {
         }
       }
 
-      const fot = await feeProvider.feePercentX100()
       let gasPrice = await provider.getGasPrice()
-
       if (lastTrade.status === TransactionStatus.Pending) {
         if (gasPrice.lt(lastTrade.gasPrice)) {
           gasPrice = lastTrade.gasPrice
         }
       }
 
-      console.log(` gas price: ${formatUnits(gasPrice, 'gwei')} fot: ${formatUnits(fot, 'wei')}`)
-
       const ethPrice = await getEthPrice()
+      const btcPrice = await getBtcPrice()
+      console.log(
+        ` gas price: ${formatUnits(gasPrice, 'gwei')}, ethPrice: ${formatEther(ethPrice)}, btcPrice: ${formatEther(
+          btcPrice
+        )}`
+      )
+
       const gasCost = gasPrice.mul(gasLimit).mul(ethPrice).div(parseEther('1'))
       const option = {
         gasPrice: gasPrice.mul(102).div(100),
         gasLimit,
       }
-      const arbiPlan = await findBestArbi(fot)
+      const arbiPlan = await findBestArbi(ethPrice, btcPrice)
       if (arbiPlan.profit.gt(gasCost)) {
         if (lastTrade.status === TransactionStatus.Pending) {
           console.log(
@@ -177,7 +198,7 @@ async function runCoreArbi() {
             } seconds ago. replaced it`
           )
         }
-        await executeStrategy(arbiPlan.strategy!, arbiPlan.amount, gasCost, fot, option)
+        await executeStrategy(arbiPlan.amount, gasCost, arbiPlan.plan, option)
       }
     } catch (error) {
       console.error(error)
@@ -185,12 +206,6 @@ async function runCoreArbi() {
   }
 }
 
-async function findTransaction() {
-  const tx = '0x9de30f9c94ea8f51ed90d7b7028cdb63b3bd21a5fc578070f5e6a4de7d1c1bad'
-  const receipt = await provider.getTransaction(tx)
-  console.log(receipt)
-}
-// const functionToRun = findTransaction
 const functionToRun = runCoreArbi
 functionToRun()
   .then((v: any) => {

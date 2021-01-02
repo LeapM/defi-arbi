@@ -1,4 +1,5 @@
 import { ethers } from 'hardhat'
+import { Transaction } from 'ethers'
 import config from '../hardhat.config'
 const { provider } = ethers
 export async function getTransactionTimeStamp(txHash: string) {
@@ -6,8 +7,8 @@ export async function getTransactionTimeStamp(txHash: string) {
   return block.timestamp
 }
 
-export async function getTransactionGas(txHash: string) {
-  const transactionInfo = await ethers.provider.getTransactionReceipt(txHash)
+export async function getTransactionGas(tx: Transaction) {
+  const transactionInfo = await ethers.provider.getTransactionReceipt(tx.hash!)
   return transactionInfo.gasUsed
 }
 export async function impersonate(address: string) {
