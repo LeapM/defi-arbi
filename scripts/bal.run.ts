@@ -5,6 +5,7 @@ import { WETH, COREDAILP, BALANCER_PROXY, ETH, COREETHLP } from '../constants/ad
 import wallets from '../secret/wallet.json'
 import { ABI as BALANCER_API } from '../abis/balancer_proxy'
 import { delay } from './utils'
+import { formatUnits } from 'ethers/lib/utils'
 const {
   utils: { parseUnits, parseEther },
 } = ethers
@@ -45,18 +46,18 @@ const main = async () => {
       key: 'COREDAI',
       tokenOut: COREDAILP,
       amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('29').toString()), //0.068
+      amoutOutRequired: new BigNumber(parseEther('28').toString()), //0.071
       bestRate: new BigNumber(0),
     },
     {
       key: 'COREETH',
       tokenOut: COREETHLP,
       amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('2.1').toString()), //0.95
+      amoutOutRequired: new BigNumber(parseEther('1.9').toString()), //1.05
       bestRate: new BigNumber(0),
     },
   ]
-  while (count < 5) {
+  while (count < 10) {
     try {
       await delay(1000 * 30)
       const gasPrice = await provider.getGasPrice()
@@ -70,7 +71,14 @@ const main = async () => {
         if (amountOut.gt(option.bestRate)) {
           option.bestRate = amountOut
         }
-        console.log(`${option.key} Total Return: ${amountOut.toString()}, best rate:${option.bestRate.toString()}`)
+        console.log(
+          `${
+            option.key
+          } Total Return: ${amountOut.toString()}, best rate:${option.bestRate.toString()}, gasprice: ${formatUnits(
+            gasPrice,
+            'gwei'
+          )}`
+        )
 
         if (gasPrice.gt(parseUnits('200', 'gwei'))) {
           console.log('gas is too expensive')
