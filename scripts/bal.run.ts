@@ -46,14 +46,14 @@ const main = async () => {
       key: 'COREDAI',
       tokenOut: COREDAILP,
       amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('28').toString()), //0.071
+      amoutOutRequired: new BigNumber(parseEther('30').toString()), //0.071
       bestRate: new BigNumber(0),
     },
     {
       key: 'COREETH',
       tokenOut: COREETHLP,
       amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('1.9').toString()), //1.05
+      amoutOutRequired: new BigNumber(parseEther('2.1').toString()), //1.05
       bestRate: new BigNumber(0),
     },
   ]
@@ -80,7 +80,7 @@ const main = async () => {
           )}`
         )
 
-        if (gasPrice.gt(parseUnits('200', 'gwei'))) {
+        if (gasPrice.gt(parseUnits('150', 'gwei'))) {
           console.log('gas is too expensive')
           continue
         }

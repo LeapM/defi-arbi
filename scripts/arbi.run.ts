@@ -1,10 +1,11 @@
 import { Contract, utils, providers, Wallet, ethers, BigNumber } from 'ethers'
 import deployer from '../secret/deployer.json'
 import COREArbi from '../abis/COREArbi.json'
+import { abi as chiAbi } from '../abis/chi.json'
 import FeeProvider from '../abis/IFeeApprover.json'
 import UniV2Router from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
-import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT, WBTC, WWBTC } from '../constants/addresses'
-import { formatUnits } from 'ethers/lib/utils'
+import { CORE, FACTORY, ROUTER, WETH, DAI, COREARBI, WDAI, WCORE, FOT, WBTC, WWBTC, CHI } from '../constants/addresses'
+import { formatUnits, parseUnits } from 'ethers/lib/utils'
 import { delay } from './utils'
 import { ONE_BTC } from '../constants/baseUnits'
 const { parseEther, formatEther } = utils
@@ -12,6 +13,7 @@ const { parseEther, formatEther } = utils
 const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
 const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
+const chi = new Contract(CHI, chiAbi, signer)
 const router = new Contract(ROUTER, UniV2Router.abi, signer)
 const feeProvider = new Contract(FOT, FeeProvider.abi, signer)
 const gasLimit = BigNumber.from('630000')
@@ -86,12 +88,17 @@ async function executeStrategy(
 ) {
   const transatcionCountMined = await signer.getTransactionCount()
   const override = { ...option, nonce: transatcionCountMined }
+  if (lastTrade.count > 2) {
+    return
+  }
+
   console.log(
-    `executing strategy ${plan.name} at nonce ${override.nonce} gasPrice: ${formatUnits(override.gasPrice, 'gwei')}`
+    `executing strategy ${plan.name} at nonce ${override.nonce}`,
+    `gasPrice: ${formatUnits(override.gasPrice, 'gwei')}`,
+    `cost : ${plan.profitUnit === 'BTC' ? formatUnits(gasCost.mul(10), 'gwei') : formatEther(gasCost)}`
   )
-  return
   try {
-    const tx = await coreArbi.executeArbi(plan.sellPath, plan.sellPath, plan.wrapFirst, amount, gasCost, override)
+    const tx = await coreArbi.executeArbi(plan.sellPath, plan.buyPath, plan.wrapFirst, amount, gasCost, override)
 
     lastTrade.count = lastTrade.count + 1
     lastTrade.timestamp = Date.now()
@@ -108,31 +115,27 @@ async function findBestArbi(ethPrice: BigNumber, btcPrice: BigNumber) {
   const bestArbi = {
     amount: BigNumber.from('0'),
     plan: arbiPlans[0],
+    profitInDai: BigNumber.from('0'),
     profit: BigNumber.from('0'),
   }
 
-  const amounts = ['1', '1.5'].map((a) => parseEther(a))
+  const amounts = ['2.5', '3.0'].map((a) => parseEther(a))
   try {
     for (let amount of amounts) {
       for (let plan of arbiPlans) {
-        let profit = (await coreArbi.getArbiProfit(plan.sellPath, plan.buyPath, amount)) as BigNumber
-        if (plan.profitUnit === 'BTC') {
-          profit = profit.mul(btcPrice).div(ONE_BTC)
-        }
-        if (profit.gt(0)) {
-          console.log(`profit: ${formatEther(profit)} amount: ${formatEther(amount)}, strategy: ${plan.name}`)
-        }
-        if (profit.gt(bestArbi.profit)) {
+        const profit = (await coreArbi.getArbiProfit(plan.sellPath, plan.buyPath, amount)) as BigNumber
+        const profitInDai = plan.profitUnit === 'BTC' ? profit.mul(btcPrice).div(ONE_BTC) : profit
+        console.log(`profit: ${formatEther(profitInDai)} amount: ${formatEther(amount)}, strategy: ${plan.name}`)
+        if (profitInDai.gt(bestArbi.profitInDai)) {
+          bestArbi.profitInDai = profitInDai
           bestArbi.profit = profit
           bestArbi.amount = amount
           bestArbi.plan = { ...plan }
         }
       }
     }
-  } catch {
-  } finally {
-    return bestArbi
-  }
+  } catch {}
+  return bestArbi
 }
 
 async function isLastTradeCompleted(trade: Trade) {
@@ -169,28 +172,29 @@ async function runCoreArbi() {
         }
       }
 
+      const ethPrice = await getEthPrice()
+      const btcPrice = await getBtcPrice()
+
       let gasPrice = await provider.getGasPrice()
       if (lastTrade.status === TransactionStatus.Pending) {
         if (gasPrice.lt(lastTrade.gasPrice)) {
-          gasPrice = lastTrade.gasPrice
+          gasPrice = lastTrade.gasPrice.mul('105').div(100) // increase the gas fee for 5% to replace previous transaction
         }
       }
 
-      const ethPrice = await getEthPrice()
-      const btcPrice = await getBtcPrice()
+      const gasCost = gasPrice.mul(gasLimit).mul(ethPrice).div(parseEther('1'))
       console.log(
-        ` gas price: ${formatUnits(gasPrice, 'gwei')}, ethPrice: ${formatEther(ethPrice)}, btcPrice: ${formatEther(
-          btcPrice
-        )}`
+        ` gas price: ${formatUnits(gasPrice, 'gwei')}, gas cost: ${formatEther(gasCost)}, ethPrice: ${formatEther(
+          ethPrice
+        )}, btcPrice: ${formatEther(btcPrice)}`
       )
 
-      const gasCost = gasPrice.mul(gasLimit).mul(ethPrice).div(parseEther('1'))
       const option = {
-        gasPrice: gasPrice.mul(102).div(100),
+        gasPrice: gasPrice.mul(102).div(100), // increase gas fee 102% to fast the comfirmation
         gasLimit,
       }
       const arbiPlan = await findBestArbi(ethPrice, btcPrice)
-      if (arbiPlan.profit.gt(gasCost)) {
+      if (arbiPlan.profitInDai.gt(gasCost)) {
         if (lastTrade.status === TransactionStatus.Pending) {
           console.log(
             `pending transaction ${lastTrade.tx} was sent ${
@@ -198,7 +202,8 @@ async function runCoreArbi() {
             } seconds ago. replaced it`
           )
         }
-        await executeStrategy(arbiPlan.amount, gasCost, arbiPlan.plan, option)
+        const cost = arbiPlan.profit.mul(gasCost).div(arbiPlan.profitInDai).mul(80).div(100)
+        await executeStrategy(arbiPlan.amount, cost, arbiPlan.plan, option)
       }
     } catch (error) {
       console.error(error)
