@@ -26,7 +26,9 @@
     "start:arbi": "ts-node scripts/arbi.run.ts",
     "start:bal": "ts-node scripts/bal.run.ts",
     "start:btc": "ts-node scripts/arbi.btc.ts",
-    "start:chi": "ts-node scripts/mint.chi.ts"
+    "start:chi": "ts-node scripts/mint.chi.ts",
+    "start:decode": "ts-node scripts/decode.ts",
+    "start:status": "ts-node scripts/arbi.status.ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.1",
