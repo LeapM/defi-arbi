@@ -26,7 +26,7 @@ const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c
 const router = new Contract(ROUTER, UniV2Router.abi, provider)
 const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
-const initialEth = parseEther('6')
+const initialEth = parseEther('8')
 const initialDai = parseEther('20000')
 
 async function getEthPrice() {
