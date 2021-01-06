@@ -1,9 +1,9 @@
 {
   "manifestVersion": "3.1",
   "impls": {
-    "d5953d58f52bd6ec323efc50712646b6b9f344ca2a2d95a08407c5839bdb396a": {
-      "address": "0xCe056264C0d21Ec357361C254b5D44A84Dc2FAcB",
-      "txHash": "0x624dd0aa36b3a896b9d3bac77ee0e712d474007deaa98141d83a7b30b2d0b2b6",
+    "026e0a1a4b257a0e8df24dd09b826480e470236ff2f15855ff4cf1df908befb8": {
+      "address": "0xF346dfCE5325A37d5D0598586B3409339A0b988b",
+      "txHash": "0x3dd6a16a30813bef0542e50ce30ede9bb7962e000708cdf824fa0d08bcdf6b4b",
       "layout": {
         "storage": [
           {
@@ -41,6 +41,67 @@
             "label": "version",
             "type": "t_uint8",
             "src": "contracts/COREArbi.sol:81"
+          }
+        ],
+        "types": {
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          },
+          "t_bool": {
+            "label": "bool"
+          }
+        }
+      }
+    },
+    "7e85047a9c91f7c606ab2d8b6e0528b7fbac87539053ae7d447d0c54f2058147": {
+      "address": "0xCe056264C0d21Ec357361C254b5D44A84Dc2FAcB",
+      "txHash": "0x390b224fccb6eb72e6d5bcd52529d76188ef26c6a0170cda81da774dfd7fae72",
+      "layout": {
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:24"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:29"
+          },
+          {
+            "contract": "ContextUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)50_storage",
+            "src": "@openzeppelin/contracts-upgradeable/GSN/ContextUpgradeable.sol:31"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "_owner",
+            "type": "t_address",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:20"
+          },
+          {
+            "contract": "OwnableUpgradeable",
+            "label": "__gap",
+            "type": "t_array(t_uint256)49_storage",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:74"
+          },
+          {
+            "contract": "COREArbi",
+            "label": "version",
+            "type": "t_uint8",
+            "src": "contracts/COREArbi.sol:83"
           }
         ],
         "types": {

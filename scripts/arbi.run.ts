@@ -21,7 +21,6 @@ const arbiPlans = [
   {
     sellPath: [CORE, WETH, DAI],
     buyPath: [WDAI, WCORE],
-    wrapFirst: false,
     profitUnit: 'DAI',
     name: 'eth-dai arbi',
   },
@@ -29,21 +28,18 @@ const arbiPlans = [
     sellPath: [WCORE, WDAI],
     buyPath: [DAI, WETH, CORE],
     profitUnit: 'DAI',
-    wrapFirst: true,
     name: 'dai-eth arbi',
   },
   {
     sellPath: [CORE, WETH, WBTC],
     buyPath: [WWBTC, CORE],
     profitUnit: 'BTC',
-    wrapFirst: false,
     name: 'eth-btc arbi',
   },
   {
     sellPath: [CORE, WWBTC],
     buyPath: [WBTC, WETH, CORE],
     profitUnit: 'BTC',
-    wrapFirst: true,
     name: 'btc-eth arbi',
   },
 ]
@@ -89,6 +85,9 @@ async function executeStrategy(
   const transatcionCountMined = await signer.getTransactionCount()
   const override = { ...option, nonce: transatcionCountMined }
 
+  if (lastTrade.count > 2) {
+    return
+  }
   console.log(
     `executing strategy ${plan.name} at nonce ${override.nonce},
     gasPrice: ${formatUnits(override.gasPrice, 'gwei')},
@@ -96,7 +95,7 @@ async function executeStrategy(
     at ${new Date().toLocaleString()}`
   )
   try {
-    const tx = await coreArbi.executeArbi(plan.sellPath, plan.buyPath, plan.wrapFirst, amount, gasCost, override)
+    const tx = await coreArbi.executeArbi(plan.sellPath, plan.buyPath, amount, gasCost, override)
 
     lastTrade.count = lastTrade.count + 1
     lastTrade.timestamp = Date.now()

@@ -9,6 +9,7 @@ task('accounts', 'Prints the, list of accounts', async (args, hre) => {
 })
 
 const blockNumber = 11563767
+// const blockNumber = 11602115
 const config: HardhatUserConfig = {
   solidity: {
     version: '0.6.6',

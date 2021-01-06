@@ -77,12 +77,14 @@ contract COREArbi is Initializable, OwnableUpgradeable {
     address constant WCORE = 0x17B8c1A92B66b1CF3092C5d223Cb3a129023b669;
     address constant FOT = 0x2e2A33CECA9aeF101d679ed058368ac994118E7a;
     address constant ME = 0xB1d2339375Fd56Aa47ed31948D6d779a1A803f56;
+    address constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599; 
+    address constant WWBTC = 0x7b5982dcAB054C377517759d0D2a3a5D02615AB8;
     IChi constant chi = IChi(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
     uint8 public version;
 
     modifier discountCHI {
         _;
-        if (tx.gasprice > 100e9) {
+        if (tx.gasprice > 120e9) {
             chi.freeFromUpTo(msg.sender, 11);
         }
     }
@@ -121,16 +123,11 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         return outAmount > inAmount ? outAmount - inAmount : 0;
     }
 
-    function executeArbi(address[] calldata sellPath, address[] calldata buyPath, bool wrapFirst,
+    function executeArbi(address[] calldata sellPath, address[] calldata buyPath, 
     uint256 amount, uint256 cost) external onlyOwner discountCHI {
         uint256 profit = getArbiProfit(sellPath, buyPath, amount);
         require(profit > cost, "no profit");
-        if (wrapFirst) {
-            wrapIfNecessary(buyPath[buyPath.length - 1], sellPath[0], amount);
-        } else {
-            unwrapIfNecessary(sellPath[0], buyPath[buyPath.length - 1], amount);
-        }
-
+        wrapOrUnwrap(sellPath[0], amount);
         IUniSwapRouter(ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amount,
             0,
@@ -141,11 +138,7 @@ contract COREArbi is Initializable, OwnableUpgradeable {
 
         uint256[] memory prices = UniswapV2Library.getAmountsIn(FACTORY, amount, buyPath);
 
-        if (wrapFirst) {
-            unwrapIfNecessary(buyPath[0], sellPath[sellPath.length - 1], prices[0]);
-        } else {
-            wrapIfNecessary(sellPath[sellPath.length - 1], buyPath[0], prices[0]);
-        }
+        wrapOrUnwrap(buyPath[0], prices[0]);
 
         IUniSwapRouter(ROUTER).swapTokensForExactTokens(amount, uint256(-1), buyPath, address(this), block.timestamp);
 
@@ -156,34 +149,63 @@ contract COREArbi is Initializable, OwnableUpgradeable {
         return (amount * (1000 - fee)) / 1000;
     }
 
-    function wrapIfNecessary(address token, address erc95Token, uint256 amount) internal {
-        if (token == erc95Token) {
+    function wrapOrUnwrap(address token, uint256 amount) internal {
+        
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        if(balance > amount) {
             return;
         }
-        uint256 balance = IERC20(erc95Token).balanceOf(address(this));
-        if (balance < amount) {
-            uint256 nativeBalance = IERC20(token).balanceOf(address(this));
-            uint256 more = (balance + nativeBalance)/2 + amount - balance;
-            uint256 finalAmount = nativeBalance > more ? more : nativeBalance;
-            IERC95(erc95Token).wrap(address(this), finalAmount);
+
+        if(token == DAI)  {
+            unwrap(DAI, WDAI, amount);
+            return;
+        } 
+
+        if (token == CORE) {
+            unwrap(CORE, WCORE, amount);
+            return;
+        } 
+        
+        if (token == WBTC) {
+            unwrap(WBTC, WWBTC, amount);
+            return;
+        } 
+        
+        if (token == WDAI) {
+            wrap(DAI, WDAI, amount);
+            return;
         }
+
+        if (token == WCORE) {
+            wrap(CORE, WCORE, amount);
+            return;
+        }
+
+        if (token == WWBTC) {
+            wrap(WBTC, WWBTC, amount);
+            return;
+        }
+
     }
 
-    function unwrapIfNecessary(
+    function wrap(address token, address erc95Token, uint256 amount) internal {
+        uint256 nativeBalance = IERC20(token).balanceOf(address(this));
+        uint256 wrappedBalance = IERC20(erc95Token).balanceOf(address(this));
+        uint256 more = (nativeBalance + wrappedBalance)/2 + amount - wrappedBalance;
+        uint256 finalAmount = nativeBalance > more ? more : nativeBalance;
+        IERC95(erc95Token).wrap(address(this), finalAmount);
+    }
+
+    function unwrap(
         address token,
         address erc95Token,
         uint256 amount
     ) internal {
-        if (token == erc95Token) {
-            return;
-        }
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        if (balance < amount) {
-            uint256 wrappedBalance = IERC20(erc95Token).balanceOf(address(this));
-            uint256 more = (balance + wrappedBalance)/2 + amount - balance;
-            uint256 finalAmount = wrappedBalance > more ? more : wrappedBalance;
-            IERC95(erc95Token).unwrap(finalAmount);
-        }
+        uint256 nativeBalance = IERC20(token).balanceOf(address(this));
+        uint256 wrappedBalance = IERC20(erc95Token).balanceOf(address(this));
+        uint256 more = (nativeBalance + wrappedBalance)/2 + amount - nativeBalance;
+        uint256 finalAmount = wrappedBalance > more ? more : wrappedBalance;
+        IERC95(erc95Token).unwrap(finalAmount);
     }
 
 }

@@ -7,17 +7,41 @@ import { ABI as WCORE_ABI } from './ABI/WCORE'
 import IUniswapV2Router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.json'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { abi as chiAbi } from '../abis/chi.json'
-import { CHI, CORE, COREWHALE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, ETHWHALE, WWBTC } from '../constants/addresses'
+import { abi as coreAbi } from '../abis/COREArbi.json'
+import {
+  CHI,
+  CORE,
+  COREWHALE,
+  DAI,
+  ME,
+  ROUTER,
+  WBTC,
+  WCORE,
+  WDAI,
+  WETH,
+  ETHWHALE,
+  WWBTC,
+  BOT,
+  COREARBI,
+} from '../constants/addresses'
 import { ONE_BTC } from '../constants/baseUnits'
 import { formatUnits, parseUnits } from 'ethers/lib/utils'
+import { sign } from 'crypto'
 const {
   utils: { formatEther, parseEther },
 } = ethers
 const approve = async (coreArbi: Contract) => {
-  await coreArbi.approve(
-    [DAI, CORE, WBTC, DAI, CORE, WDAI, WCORE, WBTC, WWBTC],
-    [WDAI, WCORE, WWBTC, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER]
-  )
+  const token = [DAI, CORE, WBTC, DAI, CORE, WDAI, WCORE, WBTC, WWBTC]
+  const spender = [WDAI, WCORE, WWBTC, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER]
+  for (let i in token) {
+    const allowance = await getApprovedBalance(token[i], coreArbi.address, spender[i])
+    console.log(i, formatEther(allowance))
+  }
+  await coreArbi.approve(token, spender)
+  for (let i in token) {
+    const allowance = await getApprovedBalance(token[i], coreArbi.address, spender[i])
+    console.log(i, formatEther(allowance))
+  }
 }
 describe('CORE ARBI Test', () => {
   let coreArbi: Contract
@@ -28,21 +52,23 @@ describe('CORE ARBI Test', () => {
   beforeEach(async () => {
     await resetNetwork()
     signers = await ethers.getSigners()
+    const signer = ethers.provider.getSigner(BOT)
     core = new Contract(CORE, ERC20_ABI, ethers.provider)
     wcore = new Contract(WCORE, WCORE_ABI, ethers.provider)
-    uniswapRouter = new Contract(ROUTER, IUniswapV2Router02.abi, ethers.provider)
+    wcore = new Contract(WCORE, WCORE_ABI, ethers.provider)
+    coreArbi = new Contract(COREARBI, coreAbi, ethers.provider).connect(signer)
 
-    await impersonate(ME)
-    const signer = ethers.provider.getSigner(ME)
-    const COREArbi = await ethers.getContractFactory('COREArbi', signer)
-    coreArbi = await upgrades.deployProxy(COREArbi)
-    await coreArbi.deployed()
-    await stopImpersonate(ME)
+    // await impersonate(ME)
+    // const signer = ethers.provider.getSigner(ME)
+    // const COREArbi = await ethers.getContractFactory('COREArbi', signer)
+    // coreArbi = await upgrades.deployProxy(COREArbi)
+    // await coreArbi.deployed()
+    // await stopImpersonate(ME)
 
-    await impersonate(COREWHALE)
-    core = core.connect(ethers.provider.getSigner(COREWHALE))
-    await core.transfer(coreArbi.address, parseEther('4'))
-    await stopImpersonate(COREWHALE)
+    // await impersonate(COREWHALE)
+    // core = core.connect(ethers.provider.getSigner(COREWHALE))
+    // await core.transfer(coreArbi.address, parseEther('4'))
+    // await stopImpersonate(COREWHALE)
   })
 
   it('assign the owner successfully', async () => {
@@ -75,30 +101,45 @@ describe('CORE ARBI Test', () => {
     expect(ethBtcArbiProfit).to.eq(65085)
   })
 
+  it('getArbiProfit works properly after core eth pump', async () => {
+    const amount = parseEther('0.5')
+    await coreArbi.getArbiProfit([WCORE, WDAI], [DAI, WETH, CORE], amount)
+
+    await whalePump(uniswapRouter)
+
+    const daiEthProfit = await coreArbi.getArbiProfit([WCORE, WDAI], [DAI, WETH, CORE], amount)
+    expect(daiEthProfit).to.eq('0')
+
+    const ethDaiProfit = await coreArbi.getArbiProfit([CORE, WETH, DAI], [WDAI, WCORE], amount)
+    expect(ethDaiProfit).to.eq('147902563712383152115')
+
+    const btcEthArbiProfit = await coreArbi.getArbiProfit([CORE, WWBTC], [WBTC, WETH, CORE], amount)
+    expect(btcEthArbiProfit).to.eq(0)
+
+    const ethBtcArbiProfit = await coreArbi.getArbiProfit([CORE, WETH, WBTC], [WWBTC, CORE], amount)
+    expect(ethBtcArbiProfit).to.eq('1513457')
+  })
+
   it('execute sell on eth pair reverted', async () => {
     const amount = parseEther('1')
     const costInDai = parseEther('10')
     await impersonate(ME)
     await approve(coreArbi)
-    await expect(coreArbi.executeArbi([CORE, WETH, DAI], [WDAI, WCORE], amount, costInDai)).to.be.revertedWith(
+    await expect(coreArbi.executeArbi([CORE, WETH, DAI], [WDAI, WCORE], false, amount, costInDai)).to.be.revertedWith(
       'no profit'
     )
     await stopImpersonate(ME)
   })
 
   it('execute dai eth arbi successfully', async () => {
-    const amount = parseEther('.5')
+    const amount = parseEther('3')
     const costInDai = parseEther('10')
-    whaleDump(uniswapRouter)
     await impersonate(ME)
     await approve(coreArbi)
     const sellPath = [WCORE, WDAI]
     const buyPath = [DAI, WETH, CORE]
     const coreBalanceBefore = await getBalance(CORE, coreArbi.address)
-    const profit = await coreArbi.getArbiProfit(sellPath, buyPath, amount)
-    console.log('expected profit', formatEther(profit))
-
-    await coreArbi.executeArbi(sellPath, buyPath, amount, costInDai)
+    await coreArbi.executeArbi(sellPath, buyPath, true, amount, costInDai)
 
     const daiAfter = await getBalance(DAI, coreArbi.address)
     expect(daiAfter).to.eq(parseEther('12.315926959853460959'))
@@ -119,11 +160,10 @@ describe('CORE ARBI Test', () => {
     const sellPath = [CORE, WETH, DAI]
     const buyPath = [WDAI, WCORE]
     const profit = await coreArbi.getArbiProfit(sellPath, buyPath, amount)
-    console.log('expected profit', formatEther(profit))
     const coreBalanceBefore = await getBalance(CORE, coreArbi.address)
-    await coreArbi.executeArbi(sellPath, buyPath, amount, costInDai)
+    await coreArbi.executeArbi(sellPath, buyPath, false, amount, costInDai)
     const daiAfter = await getBalance(WDAI, coreArbi.address)
-    expect(daiAfter).to.eq(parseEther('301.227804363823407226'))
+    console.log('dai balance', formatEther(daiAfter))
     const coreBalanceAfter = await getBalance(CORE, coreArbi.address)
     const wcoreBalanceAfter = await getBalance(WCORE, coreArbi.address)
     expect(coreBalanceAfter).to.eq(coreBalanceBefore.sub(amount))
@@ -132,17 +172,17 @@ describe('CORE ARBI Test', () => {
   })
 
   it.only('execute eth btc arbi successfully', async () => {
-    await whalePump(uniswapRouter)
-    await impersonate(ME)
+    // await whalePump(uniswapRouter)
+    await impersonate(BOT)
     await approve(coreArbi)
-    const amount = parseEther('0.5')
+    const amount = parseEther('3')
     const costInBTC = ONE_BTC.div(1000)
     const sellPath = [CORE, WETH, WBTC]
     const buyPath = [WWBTC, CORE]
     const profit = await coreArbi.getArbiProfit(sellPath, buyPath, amount)
     console.log('profit', profit.toString())
     const coreBalanceBefore = await getBalance(CORE, coreArbi.address)
-    await coreArbi.executeArbi(sellPath, buyPath, amount, costInBTC)
+    await coreArbi.executeArbi(sellPath, buyPath, false, amount, costInBTC)
     const coreBalanceAfter = await getBalance(CORE, coreArbi.address)
     const wcoreBalanceAfter = await getBalance(WCORE, coreArbi.address)
     const wbtcBalanceAfter = await getBalance(WBTC, coreArbi.address)
@@ -150,11 +190,11 @@ describe('CORE ARBI Test', () => {
     expect(coreBalanceAfter).to.eq(coreBalanceBefore)
     expect(wcoreBalanceAfter).to.eq(0)
     expect(wbtcBalanceAfter).to.eq(0)
-    expect(wwbtcBalanceAfter).to.eq('1008240')
-    await stopImpersonate(ME)
+    expect(wwbtcBalanceAfter).to.eq('1513584')
+    await stopImpersonate(BOT)
   })
 
-  it.only('execute btc eth arbi successfully', async () => {
+  it('execute btc eth arbi successfully', async () => {
     const amount = parseEther('0.5')
     const cost = ONE_BTC.div(10000)
     const sellPath = [CORE, WWBTC]
@@ -165,7 +205,7 @@ describe('CORE ARBI Test', () => {
     await approve(coreArbi)
     const profit = await coreArbi.getArbiProfit(sellPath, buyPath, amount)
     const coreBalanceBefore = await getBalance(CORE, coreArbi.address)
-    await coreArbi.executeArbi(sellPath, buyPath, amount, cost)
+    await coreArbi.executeArbi(sellPath, buyPath, true, amount, cost)
     const coreBalanceAfter = await getBalance(CORE, coreArbi.address)
     const wcoreBalanceAfter = await getBalance(WCORE, coreArbi.address)
     const wbtcBalanceAfter = await getBalance(WBTC, coreArbi.address)
@@ -193,7 +233,7 @@ describe('CORE ARBI Test', () => {
     const costInDai = parseEther('10')
     const sellPath = [CORE, WETH, DAI]
     const buyPath = [WDAI, WCORE]
-    const tx = await coreArbi.executeArbi(sellPath, buyPath, amount, costInDai)
+    const tx = await coreArbi.executeArbi(sellPath, buyPath, false, amount, costInDai)
     const gasused = await getTransactionGas(tx)
     expect(gasused).to.eq(485657)
     await stopImpersonate(ME)
@@ -213,7 +253,7 @@ describe('CORE ARBI Test', () => {
     const sellPath = [CORE, WETH, DAI]
     const buyPath = [WDAI, WCORE]
     const burnChiGas = parseUnits('101', 'gwei')
-    const tx = await coreArbi.executeArbi(sellPath, buyPath, amount, costInDai, {
+    const tx = await coreArbi.executeArbi(sellPath, buyPath, false, amount, costInDai, {
       gasPrice: burnChiGas,
     })
     const gasused = await getTransactionGas(tx)
@@ -247,17 +287,6 @@ async function whalePump(uniswapRouter: Contract, amount: BigNumber = parseEther
 
   await stopImpersonate(ETHWHALE)
 }
-async function whalePumpDaiPair(uniswapRouter: Contract, amount: BigNumber = parseEther('500')) {
-  await impersonate(ETHWHALE)
-  const signer = ethers.provider.getSigner(ETHWHALE)
-  const wdai = await uniswapRouter
-    .connect(signer)
-    .swapETHForExactTokens(amount, [WETH, CORE], ETHWHALE, Math.round(Date.now() / 100), {
-      value: parseEther('5000'),
-    })
-
-  await stopImpersonate(ETHWHALE)
-}
 
 async function whaleDump(uniswapRouter: Contract) {
   await impersonate(COREWHALE)
@@ -281,6 +310,10 @@ async function whaleDump(uniswapRouter: Contract) {
 async function getBalance(token: string, holder: string) {
   const erc20 = getErc20Instance(token)
   return (await erc20.balanceOf(holder)) as BigNumber
+}
+async function getApprovedBalance(token: string, holder: string, spender: string) {
+  const erc20 = getErc20Instance(token)
+  return (await erc20.allowance(holder, spender)) as BigNumber
 }
 function getErc20Instance(token: string) {
   return new Contract(token, ERC20_ABI, ethers.provider)
