@@ -46,17 +46,22 @@ async function getEtherBalance() {
 async function getBTCBalance() {
   const wbtcInstance = getErc20Instance(WBTC, provider)
   const wbtcBalance = (await wbtcInstance.balanceOf(COREARBI)) as BigNumber
+  const wbtcBalanceBot = (await wbtcInstance.balanceOf(BOT)) as BigNumber
   const wwbtcInstance = getErc20Instance(WWBTC, provider)
   const wwbtcBalance = (await wwbtcInstance.balanceOf(COREARBI)) as BigNumber
-  const totalBtc = wbtcBalance.add(wwbtcBalance)
+  const wwbtcBalanceBot = (await wwbtcInstance.balanceOf(BOT)) as BigNumber
+  const totalBtc = wbtcBalance.add(wwbtcBalance).add(wbtcBalanceBot).add(wwbtcBalanceBot)
   return totalBtc
 }
 async function getDaiBalance() {
   const daiInstance = getErc20Instance(DAI, provider)
   const daiBalance = (await daiInstance.balanceOf(COREARBI)) as BigNumber
+  const daiBalanceBot = (await daiInstance.balanceOf(BOT)) as BigNumber
   const wdaiInstance = getErc20Instance(WDAI, provider)
   const wdaiBalance = (await wdaiInstance.balanceOf(COREARBI)) as BigNumber
-  const daiProfit = daiBalance.add(wdaiBalance).sub(initialDai)
+  const wdaiBalanceBot = (await wdaiInstance.balanceOf(BOT)) as BigNumber
+  const totalDai = daiBalance.add(daiBalanceBot).add(wdaiBalance).add(wdaiBalanceBot)
+  const daiProfit = totalDai.sub(initialDai)
   const ethPrice = await getEthPrice()
   const profitInEth = daiProfit.mul(parseEther('1')).div(ethPrice)
   const leftEth = await getEtherBalance()
@@ -80,7 +85,7 @@ function formatProfit(initialEth: BigNumber, currentBalance: BigNumber) {
 }
 
 async function withdrawProfit() {
-  await coreArbi.withdrawTokens([WBTC, DAI], [ONE_BTC, parseEther('5000')], deployer.address)
+  await coreArbi.withdrawTokens([WBTC, DAI], [ONE_BTC, parseEther('5000')], BOT)
 }
 const functionToRun = getDaiBalance
 // const functionToRun = withdrawProfit
