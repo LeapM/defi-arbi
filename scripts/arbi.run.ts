@@ -90,9 +90,10 @@ async function executeStrategy(
   const override = { ...option, nonce: transatcionCountMined }
 
   console.log(
-    `executing strategy ${plan.name} at nonce ${override.nonce}`,
-    `gasPrice: ${formatUnits(override.gasPrice, 'gwei')}`,
-    `cost : ${plan.profitUnit === 'BTC' ? formatUnits(gasCost.mul(10), 'gwei') : formatEther(gasCost)}`
+    `executing strategy ${plan.name} at nonce ${override.nonce},
+    gasPrice: ${formatUnits(override.gasPrice, 'gwei')},
+    cost : ${plan.profitUnit === 'BTC' ? formatUnits(gasCost.mul(10), 'gwei') : formatEther(gasCost)}
+    at ${new Date().toLocaleString()}`
   )
   try {
     const tx = await coreArbi.executeArbi(plan.sellPath, plan.buyPath, plan.wrapFirst, amount, gasCost, override)
@@ -123,7 +124,9 @@ async function findBestArbi(ethPrice: BigNumber, btcPrice: BigNumber) {
       for (let plan of arbiPlans) {
         const profit = (await coreArbi.getArbiProfit(plan.sellPath, plan.buyPath, amount)) as BigNumber
         const profitInDai = plan.profitUnit === 'BTC' ? profit.mul(btcPrice).div(ONE_BTC) : profit
-        // console.log(`profit: ${formatEther(profitInDai)} amount: ${formatEther(amount)}, strategy: ${plan.name}`)
+        if (profitInDai.gt(0)) {
+          console.log(`profit: ${formatEther(profitInDai)} amount: ${formatEther(amount)}, strategy: ${plan.name}`)
+        }
         if (profitInDai.gt(bestArbi.profitInDai)) {
           bestArbi.profitInDai = profitInDai
           bestArbi.profit = profit
@@ -159,7 +162,6 @@ async function runCoreArbi() {
   while (true) {
     try {
       await delay(10000)
-      // console.log('process at ', new Date().toLocaleString())
       const completed = await isLastTradeCompleted(lastTrade)
       if (!completed) {
         // check how old the transaction is
