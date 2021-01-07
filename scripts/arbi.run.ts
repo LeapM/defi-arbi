@@ -15,8 +15,8 @@ const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const chi = new Contract(CHI, chiAbi, signer)
 const router = new Contract(ROUTER, UniV2Router.abi, signer)
-const feeProvider = new Contract(FOT, FeeProvider.abi, signer)
 const gasLimit = BigNumber.from('630000')
+let failureCounter = 0
 const arbiPlans = [
   {
     sellPath: [CORE, WETH, DAI],
@@ -85,9 +85,6 @@ async function executeStrategy(
   const transatcionCountMined = await signer.getTransactionCount()
   const override = { ...option, nonce: transatcionCountMined }
 
-  if (lastTrade.count > 2) {
-    return
-  }
   console.log(
     `executing strategy ${plan.name} at nonce ${override.nonce},
     gasPrice: ${formatUnits(override.gasPrice, 'gwei')},
@@ -142,18 +139,26 @@ async function isLastTradeCompleted(trade: Trade) {
   if (trade.status === TransactionStatus.Completed) {
     return true
   }
-  const receipt = await provider.getTransaction(lastTrade.tx)
+  const txResult = await provider.getTransaction(lastTrade.tx)
 
-  if (!receipt) {
+  if (!txResult) {
     // in case the tx was replaced by another tx, but lastTrade still have the old tx
     trade.status = TransactionStatus.Completed
     return true
   }
 
-  if (receipt.confirmations > 0) {
+  if (txResult.confirmations > 0) {
     trade.status = TransactionStatus.Completed
+    const receipt = await provider.getTransactionReceipt(lastTrade.tx)
+    if (receipt.status == 0) {
+      failureCounter++
+      console.log('increase failure counter to ', failureCounter)
+    } else {
+      failureCounter = 0
+    }
     return true
   }
+
   return false
 }
 
@@ -171,6 +176,10 @@ async function runCoreArbi() {
         }
       }
 
+      if (failureCounter > 2) {
+        console.error('reverted 3 times in a row, investigate')
+        continue
+      }
       const ethPrice = await getEthPrice()
       const btcPrice = await getBtcPrice()
 
