@@ -117,7 +117,7 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
-  it.only('execute eth dai arbi successfully', async () => {
+  it('execute eth dai arbi successfully', async () => {
     await whalePump(uniswapRouter)
     await impersonate(ME)
     await approve(coreArbi)
@@ -197,7 +197,7 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
-  it('should burn less gas', async () => {
+  it.only('should burn less gas', async () => {
     await whalePump(uniswapRouter)
     await impersonate(ME)
     await approve(coreArbi)
@@ -234,19 +234,6 @@ describe('CORE ARBI Test', () => {
     expect(savedGas.mul(burnChiGas).div(11)).to.eq(parseEther('0.001563516727272727'))
     await stopImpersonate(ME)
   })
-
-  // it('wrap core without fot successuflly', async () => {
-  //   const amount = parseEther('0.5')
-  //   await impersonate(ME)
-  //   const signer = ethers.provider.getSigner(ME)
-  //   await core.connect(signer).approve(WCORE, amount)
-  //   await wcore.connect(signer).wrap(ME, amount)
-  //   const wamount = await wcore.balanceOf(ME)
-  //   expect(amount).to.equal(wamount)
-  //   // same amount core is unsrapped
-  //   await expect(() => wcore.connect(signer).unwrap(amount)).to.changeTokenBalance(core, signer, amount)
-  //   await stopImpersonate(ME)
-  // })
 })
 async function whalePump(uniswapRouter: Contract, amount: BigNumber = parseEther('500')) {
   await impersonate(ETHWHALE)

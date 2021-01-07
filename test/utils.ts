@@ -19,12 +19,12 @@ export async function stopImpersonate(address: string) {
   await provider.send('hardhat_stopImpersonatingAccount', [address])
 }
 
-export async function resetNetwork() {
+export async function resetNetwork(blockNumber?: Number) {
   await provider.send('hardhat_reset', [
     {
       forking: {
         jsonRpcUrl: config.networks?.hardhat?.forking?.url,
-        blockNumber: config.networks?.hardhat?.forking?.blockNumber,
+        blockNumber: blockNumber || config.networks?.hardhat?.forking?.blockNumber,
       },
     },
   ])

@@ -121,7 +121,11 @@ async function findBestArbi(ethPrice: BigNumber, btcPrice: BigNumber) {
         const profit = (await coreArbi.getArbiProfit(plan.sellPath, plan.buyPath, amount)) as BigNumber
         const profitInDai = plan.profitUnit === 'BTC' ? profit.mul(btcPrice).div(ONE_BTC) : profit
         if (profitInDai.gt(0)) {
-          console.log(`profit: ${formatEther(profitInDai)} amount: ${formatEther(amount)}, strategy: ${plan.name}`)
+          console.log(
+            `profit: ${formatEther(profitInDai)} amount: ${formatEther(amount)}, strategy: ${
+              plan.name
+            } at: ${new Date().toLocaleString()}`
+          )
         }
         if (profitInDai.gt(bestArbi.profitInDai)) {
           bestArbi.profitInDai = profitInDai
