@@ -93,7 +93,7 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
-  it.only('execute dai eth arbi successfully', async () => {
+  it('execute dai eth arbi successfully', async () => {
     const amount = parseEther('.5')
     const costInDai = parseEther('10')
     whalePumpDaiPair(uniswapRouter)
@@ -117,7 +117,7 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
-  it('execute eth dai arbi successfully', async () => {
+  it.only('execute eth dai arbi successfully', async () => {
     await whalePump(uniswapRouter)
     await impersonate(ME)
     await approve(coreArbi)

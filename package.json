@@ -24,10 +24,12 @@
     "deploy:live": "npx hardhat run --network mainnet scripts/deploy.arbi.ts",
     "deploy:ropsten": "npx hardhat run --network ropsten scripts/deploy.arbi.ts",
     "start:arbi": "ts-node scripts/arbi.run.ts",
+    "start:arbilp": "ts-node scripts/arbi.lp.ts",
     "start:bal": "ts-node scripts/bal.run.ts",
     "start:btc": "ts-node scripts/arbi.btc.ts",
     "start:chi": "ts-node scripts/mint.chi.ts",
     "start:decode": "ts-node scripts/decode.ts",
+    "start:other": "ts-node scripts/others.ts",
     "start:status": "ts-node scripts/arbi.status.ts"
   },
   "devDependencies": {

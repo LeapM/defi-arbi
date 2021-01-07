@@ -189,10 +189,12 @@ contract COREArbi is Initializable, OwnableUpgradeable {
     }
 
     function wrap(address token, address erc95Token, uint256 amount) internal {
+        console.log(amount);
         uint256 nativeBalance = IERC20(token).balanceOf(address(this));
         uint256 wrappedBalance = IERC20(erc95Token).balanceOf(address(this));
         uint256 more = (nativeBalance + wrappedBalance)/2 + amount - wrappedBalance;
         uint256 finalAmount = nativeBalance > more ? more : nativeBalance;
+        console.log(nativeBalance, wrappedBalance, more, finalAmount);
         IERC95(erc95Token).wrap(address(this), finalAmount);
     }
 
