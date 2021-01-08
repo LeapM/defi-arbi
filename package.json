@@ -28,6 +28,7 @@
     "start:bal": "ts-node scripts/bal.run.ts",
     "start:btc": "ts-node scripts/arbi.btc.ts",
     "start:chi": "ts-node scripts/mint.chi.ts",
+    "start:compare": "ts-node scripts/alchemy_infura.ts",
     "start:decode": "ts-node scripts/decode.ts",
     "start:other": "ts-node scripts/others.ts",
     "start:status": "ts-node scripts/arbi.status.ts"

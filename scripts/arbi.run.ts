@@ -10,7 +10,8 @@ import { delay } from './utils'
 import { ONE_BTC } from '../constants/baseUnits'
 const { parseEther, formatEther } = utils
 
-const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
+const provider = new providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
+//const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
 const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const chi = new Contract(CHI, chiAbi, signer)
@@ -89,7 +90,7 @@ async function executeStrategy(
     `executing strategy ${plan.name} at nonce ${override.nonce},
     gasPrice: ${formatUnits(override.gasPrice, 'gwei')},
     cost : ${plan.profitUnit === 'BTC' ? formatUnits(gasCost.mul(10), 'gwei') : formatEther(gasCost)}
-    at ${new Date().toLocaleString()}`
+    at ${new Date().toLocaleString('en-US', { timeZone: 'Australia/Perth' })}`
   )
   try {
     const tx = await coreArbi.executeArbi(plan.sellPath, plan.buyPath, amount, gasCost, override)
@@ -124,7 +125,7 @@ async function findBestArbi(ethPrice: BigNumber, btcPrice: BigNumber) {
           console.log(
             `profit: ${formatEther(profitInDai)} amount: ${formatEther(amount)}, strategy: ${
               plan.name
-            } at: ${new Date().toLocaleString()}`
+            } at: ${new Date().toLocaleString('en-US', { timeZone: 'Australia/Perth' })}`
           )
         }
         if (profitInDai.gt(bestArbi.profitInDai)) {
