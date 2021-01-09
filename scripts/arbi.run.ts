@@ -173,7 +173,7 @@ async function isLastTradeCompleted(trade: Trade) {
 async function runCoreArbi() {
   while (true) {
     try {
-      await delay(3000)
+      await delay(4000)
       const completed = await isLastTradeCompleted(lastTrade)
       if (!completed) {
         // check how old the transaction is
