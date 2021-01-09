@@ -170,12 +170,12 @@ async function isLastTradeCompleted(trade: Trade) {
 async function runCoreArbi() {
   while (true) {
     try {
-      await delay(10000)
+      await delay(5000)
       const completed = await isLastTradeCompleted(lastTrade)
       if (!completed) {
         // check how old the transaction is
         const timeSinceSent = Date.now() - lastTrade.timestamp
-        const isTimeOut = timeSinceSent > 60 * 1000 * 1
+        const isTimeOut = timeSinceSent > 40 * 1000 * 1
         if (!isTimeOut) {
           continue
         }
@@ -190,7 +190,8 @@ async function runCoreArbi() {
 
       let gasPrice = await provider.getGasPrice()
       if (lastTrade.status === TransactionStatus.Pending) {
-        const minimumGasPrice = lastTrade.gasPrice.mul(111).div(100)
+        gasPrice = gasPrice.mul(110).div(100)
+        const minimumGasPrice = lastTrade.gasPrice.mul(120).div(100)
         if (gasPrice.lt(minimumGasPrice)) {
           console.log(
             `increase gas price from ${formatUnits(gasPrice, 'gwei')} to ${formatUnits(minimumGasPrice, 'gwei')}`
@@ -202,7 +203,7 @@ async function runCoreArbi() {
       let gasCost = gasPrice.mul(gasLimit).mul(ethPrice).div(parseEther('1'))
       if (lastTrade.status === TransactionStatus.Pending) {
         // reduce the gascost and hope the transaction won't revert
-        gasCost = gasCost.mul(80).div(100)
+        gasCost = gasCost.mul(70).div(100)
       }
 
       // console.log(
