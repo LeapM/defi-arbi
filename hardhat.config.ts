@@ -29,7 +29,8 @@ const config: HardhatUserConfig = {
       // accounts: [`0x${deployer.key}`],
     },
     mainnet: {
-      url: 'https://mainnet.infura.io/v3/3ad5fab786964809988a9c7fefc5d3a5',
+      // url: 'https://mainnet.infura.io/v3/3ad5fab786964809988a9c7fefc5d3a5',
+      url: 'https://eth-mainnet.alchemyapi.io/v2/P6b7PduZEpsHlatVROjGcVGQF7CqS_S0',
       accounts: [`0x${deployer.key}`],
     },
     ropsten: {

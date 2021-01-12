@@ -90,7 +90,7 @@ contract UniArbi {
         if (hasFot) {
             output = output * 990 / 1000;
         }
-        // require(output > ethAmount + 300000, 'no profit');
+        require(output > ethAmount + 300000, 'no profit');
         // transfer weth to first pair
         IERC20(WETH).transferFrom(msg.sender, pairs[0], ethAmount);
 
