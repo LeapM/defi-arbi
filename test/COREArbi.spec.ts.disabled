@@ -8,7 +8,21 @@ import IUniswapV2Router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.j
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { abi as chiAbi } from '../abis/chi.json'
 import { abi as erc95Abi } from '../abis/erc95.json'
-import { CHI, CORE, COREWHALE, DAI, ME, ROUTER, WBTC, WCORE, WDAI, WETH, ETHWHALE, WWBTC } from '../constants/addresses'
+import {
+  CHI,
+  CORE,
+  COREWHALE,
+  DAI,
+  ME,
+  ROUTER,
+  WBTC,
+  WCORE,
+  WDAI,
+  WETH,
+  ETHWHALE,
+  WWBTC,
+  WETHWHALE,
+} from '../constants/addresses'
 import { ONE_BTC } from '../constants/baseUnits'
 import { formatUnits, parseUnits } from 'ethers/lib/utils'
 import { sign } from 'crypto'
@@ -17,8 +31,8 @@ const {
 } = ethers
 const approve = async (coreArbi: Contract) => {
   await coreArbi.approve(
-    [DAI, CORE, WBTC, DAI, CORE, WDAI, WCORE, WBTC, WWBTC],
-    [WDAI, WCORE, WWBTC, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER]
+    [DAI, CORE, WBTC, DAI, CORE, WDAI, WCORE, WBTC, WWBTC, WETH],
+    [WDAI, WCORE, WWBTC, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER, ROUTER]
   )
 }
 describe('CORE ARBI Test', () => {
@@ -142,6 +156,27 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
+  it.only('execute by pass fot successfully', async () => {
+    // await whalePump(uniswapRouter)
+    await impersonate(WETHWHALE)
+    const weth = getErc20Instance(WETH).connect(ethers.provider.getSigner(WETHWHALE))
+    await weth.transfer(coreArbi.address, parseEther('20'))
+    await stopImpersonate(WETHWHALE)
+    await impersonate(ME)
+    await approve(coreArbi)
+    const amount = parseEther('0.5')
+    const zeroBytes32 = (new Array(32)).fill(0)
+    zeroBytes32[31]=4
+    zeroBytes32[0]=1
+    const ethCorePair = {pair:'0x32ce7e48debdccbfe0cd037cc89526e4382cb81b',
+    token1:{
+      address:'0x62359ed7505efc61ff1d56fef82158ccaffa23d7',
+      name:"CORE"
+    }}
+    await coreArbi.execute([ethCorePair.pair],zeroBytes32)
+    await stopImpersonate(ME)
+  })
+
   it('execute eth btc arbi successfully', async () => {
     await whalePump(uniswapRouter)
     await impersonate(ME)
@@ -197,7 +232,7 @@ describe('CORE ARBI Test', () => {
     await stopImpersonate(ME)
   })
 
-  it.only('should burn less gas', async () => {
+  it('should burn less gas', async () => {
     await whalePump(uniswapRouter)
     await impersonate(ME)
     await approve(coreArbi)

@@ -10,8 +10,8 @@ import { delay } from './utils'
 import { ONE_BTC } from '../constants/baseUnits'
 const { parseEther, formatEther } = utils
 
-const provider = new providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
-//const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
+// const provider = new providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
+const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
 const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const chi = new Contract(CHI, chiAbi, signer)
@@ -84,7 +84,7 @@ async function executeStrategy(
   option: { gasPrice: BigNumber; gasLimit: BigNumber }
 ) {
   const transatcionCountMined = await signer.getTransactionCount()
-  const override = { ...option, nonce: transatcionCountMined }
+  const override = { ...option, gasLimit: BigNumber.from('830000'), nonce: transatcionCountMined }
 
   console.log(
     `executing strategy ${plan.name} at nonce ${override.nonce},
