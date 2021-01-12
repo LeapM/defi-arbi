@@ -8,7 +8,7 @@ import IUniswapV2Router02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.j
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { abi as chiAbi } from '../abis/chi.json'
 import { abi as erc95Abi } from '../abis/erc95.json'
-import { coreWEthPair, coreCBtcPair, wBtcWethPair } from '../constants/uniPairs'
+import { coreWEthPair, coreCBtcPair, wBtcWethPair, DaiWethPair, cDaiCCorePair } from '../constants/uniPairs'
 import {
   CHI,
   CORE,
@@ -85,18 +85,93 @@ describe('CORE ARBI Test', () => {
     const weth = getErc20Instance(WETH).connect(ethers.provider.getSigner(ME))
     await weth.approve(uniArbi.address, ethers.constants.MaxUint256)
     await approve(uniArbi)
-    const wethBalanceBefore = await weth.balanceOf(ME)
-    console.log('balance before', formatEther(wethBalanceBefore))
-    const zeroBytes32 = new Array(32).fill(0)
-    zeroBytes32[31] = 255
-    zeroBytes32[0] = 1
-    zeroBytes32[1] = 0b100
-    const tx = await uniArbi.execute([coreWEthPair.address, coreCBtcPair.address, wBtcWethPair.address], zeroBytes32, {
-      gasPrice: parseUnits('130', 'gwei'),
-    })
-    const gas = await getTransactionGas(tx)
-    const wethBalanceAfter = await weth.balanceOf(ME)
-    console.log('balanceafter', formatEther(wethBalanceAfter), formatUnits(gas))
+    const amount = 10
+    const metaForEthBtc = new Array(32).fill(0)
+    metaForEthBtc[31] = amount
+    metaForEthBtc[0] = 0b1
+    metaForEthBtc[1] = 0b100
+
+    const metaForBtcEth = new Array(32).fill(0)
+    metaForBtcEth[31] = amount
+    // get wbtc, wrap it into cbtc, and reverse the order
+    metaForBtcEth[0] = 0b11
+    // reverse to get core
+    metaForBtcEth[1] = 0b1
+    // normal order to get eth
+    metaForBtcEth[2] = 0b0
+
+    const metaForDaiEth = new Array(32).fill(0)
+    metaForDaiEth[31] = amount
+    metaForDaiEth[30] = 0b1
+    // reverse to get dai and wrap it into cdai
+    metaForDaiEth[0] = 0b111
+    // get ccore and unwrap it into core
+    metaForDaiEth[1] = 0b1100
+    // normal order to get eth
+    metaForDaiEth[2] = 0b0
+
+    const metaForEthDai = new Array(32).fill(0)
+    metaForEthDai[31] = amount
+    // reverse to get CORE and wrap it into cCore
+    metaForEthDai[0] = 0b1011
+    // reverse to get CDAI and unwrap it into dai
+    metaForEthDai[1] = 0b1001
+    // normal order to get eth
+    metaForEthDai[2] = 0b0
+    const options = [
+      {
+        pairs: [coreWEthPair.address, coreCBtcPair.address, wBtcWethPair.address],
+        meta: metaForEthBtc,
+        name: 'eth-btc',
+      },
+      {
+        pairs: [wBtcWethPair.address, coreCBtcPair.address, coreWEthPair.address],
+        meta: metaForBtcEth,
+        name: 'btc-eth',
+      },
+      {
+        pairs: [DaiWethPair.address, cDaiCCorePair.address, coreWEthPair.address],
+        meta: metaForDaiEth,
+        name: 'dai-eth',
+        feeApplied: true,
+      },
+      {
+        pairs: [coreWEthPair.address, cDaiCCorePair.address, DaiWethPair.address],
+        meta: metaForEthDai,
+        name: 'eth-dai',
+      },
+    ]
+
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i]
+      const wethBalanceBefore = await weth.balanceOf(ME)
+      const amoutInEth = parseEther(option.meta[31].toString())
+      const amounts = await uniArbi.getAmountsOut(amoutInEth, option.pairs, option.meta)
+      let output = amounts[amounts.length - 1]
+      if (option.feeApplied) {
+        output = output.mul(990).div(1000)
+      }
+      const expectedWEthBalance = wethBalanceBefore.add(output).sub(amoutInEth)
+      const tx = await uniArbi.execute(option.pairs, option.meta, {
+        gasPrice: parseUnits('100', 'gwei'),
+      })
+      const gas = await getTransactionGas(tx)
+      const wethBalanceAfter = await weth.balanceOf(ME)
+      console.log(
+        'log',
+        formatEther(wethBalanceBefore),
+        formatEther(expectedWEthBalance),
+        formatEther(wethBalanceAfter),
+        formatUnits(gas, 'wei')
+      )
+      expect(expectedWEthBalance).to.eq(wethBalanceAfter)
+      if (wethBalanceAfter.gt(wethBalanceBefore)) {
+        console.log('profit', option.name, formatEther(wethBalanceAfter.sub(wethBalanceBefore)))
+      } else {
+        console.log('lost', option.name, formatEther(wethBalanceBefore.sub(wethBalanceAfter)))
+      }
+    }
+
     await stopImpersonate(ME)
   })
 })

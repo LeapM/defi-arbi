@@ -11,7 +11,8 @@ const {
 } = ethers
 
 const poolsUrl = 'https://ipfs.fleek.co/ipns/balancer-team-bucket.storage.fleek.co/balancer-exchange/pools'
-const provider = new ethers.providers.InfuraProvider(undefined)
+// const provider = new ethers.providers.InfuraProvider(undefined)
+const provider = new ethers.providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
 
 async function execute(
   swaps: any,

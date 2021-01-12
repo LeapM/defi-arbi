@@ -41,9 +41,11 @@ contract UniArbi {
     IChi constant chi = IChi(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
 
     modifier discountCHI {
+        uint256 gasStart = gasleft();
         _;
         if (tx.gasprice > 120e9) {
-            chi.freeFromUpTo(msg.sender, 6);
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
         }
     }
 
@@ -82,20 +84,25 @@ contract UniArbi {
         uint ethAmount = uint(uint8(meta[31]) * 1e18);
         uint[] memory amounts = getAmountsOut(ethAmount, pairs, meta);
         uint output = amounts[amounts.length - 1];
-        uint256 initialWethBalance = IERC20(WETH).balanceOf(address(this));
+        
+        bool hasFot = (uint8(meta[30])) == 1;
+
+        if (hasFot) {
+            output = output * 990 / 1000;
+        }
+        // require(output > ethAmount + 300000, 'no profit');
         // transfer weth to first pair
         IERC20(WETH).transferFrom(msg.sender, pairs[0], ethAmount);
 
         uint8 count = uint8(pairs.length);
         uint8 maxIndex = count - 1;
-
         for (uint8 i = 0; i < count; i++) {
             IUniswapV2Pair pair = IUniswapV2Pair(pairs[i]);
             uint8 flag = uint8(meta[i]);
             bool isReverse = isPairReverse(flag);
             bool isDirect = isDirect(flag);
             address destination = i == maxIndex ? msg.sender: pairs[i + 1];
-
+            // console.log(i, isReverse, isDirect, destination);
             uint amount= amounts[i+1];
             if(isDirect) {
                 if(isReverse) {
@@ -115,42 +122,45 @@ contract UniArbi {
             }
             
             flag = flag >> 1;
-            bool iscDaiWrap = iscDaiWrap(flag);
-            if (iscDaiWrap) {
-                wrap(CDAI, amount, destination);
-                continue;
-            } 
-
-            bool iscDaiUnwrap = iscDaiUnwrap(flag);
-            if (iscDaiUnwrap) {
-                unwrap(CDAI, amount);
-                IERC20(DAI).transfer(destination, amount);
-                continue;
-            } 
-
-            bool iscBTCWrap = iscBTCWrap(flag);
-            if (iscBTCWrap) {
+            if (iscBTCWrap(flag)) {
+                // console.log('wrap btc');
+                // console.log(IERC20(WBTC).balanceOf(address(this)), amount);
                 wrap(CBTC, amount, destination);
                 continue;
             } 
 
-            bool iscBTCUnwrap = iscBTCUnwrap(flag);
-            if (iscBTCUnwrap) {
+            if (iscBTCUnwrap(flag)) {
+                // console.log('unwrap btc');
                 unwrap(CBTC, amount);
                 IERC20(WBTC).transfer(destination, amount);
                 continue;
             }
 
-            bool iscCoreWrap= iscCoreWrap(flag);
-            if (iscCoreWrap) {
+            if (iscDaiWrap(flag)) {
+                // console.log('wrap dai');
+                wrap(CDAI, amount, destination);
+                continue;
+            } 
+
+            if (iscDaiUnwrap(flag)) {
+                // console.log('unwrap dai');
+                unwrap(CDAI, amount);
+                IERC20(DAI).transfer(destination, amount);
+                continue;
+            } 
+
+            if (iscCoreWrap(flag)) {
+                // console.log('wrap core');
                 wrap(CCORE, amount, destination);
                 continue;
             } 
 
-            bool iscCoreUnwrap = iscCoreUnwrap(flag);
-            if (iscCoreUnwrap) {
+            if (iscCoreUnwrap(flag)) {
+                // console.log('unwrap core');
                 unwrap(CCORE, amount);
                 IERC20(CORE).transfer(destination, amount);
+                // reduce the amount by 1% to counter fee
+                amounts[i+2] = amounts[i+2] * 990 / 1000;
                 continue;
             }
             require(1 == 0, "wrong flag");

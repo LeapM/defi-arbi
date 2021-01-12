@@ -27,3 +27,23 @@ export const wBtcWethPair = {
     name: 'WETH',
   },
 }
+
+export const cDaiCCorePair = {
+  address: '0x01ac08e821185b6d87e68c67f9dc79a8988688eb',
+  token0: {
+    name: 'CDAI',
+  },
+  token1: {
+    name: 'CCORE',
+  },
+}
+
+export const DaiWethPair = {
+  address: '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11',
+  token0: {
+    name: 'DAI',
+  },
+  token1: {
+    name: 'WETH',
+  },
+}

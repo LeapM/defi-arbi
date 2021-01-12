@@ -22,7 +22,8 @@ import { getErc20Instance } from './utils'
 import { Signer } from 'crypto'
 const { parseEther, formatEther, formatUnits } = utils
 
-const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
+// const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
+const provider = new providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
 const router = new Contract(ROUTER, UniV2Router.abi, provider)
 const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
