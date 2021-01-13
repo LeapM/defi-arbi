@@ -7,14 +7,16 @@ import { formatUnits, parseUnits } from 'ethers/lib/utils'
 import { delay } from './utils'
 import { cDaiCCorePair, coreCBtcPair, coreWEthPair, DaiWethPair, wBtcWethPair } from '../constants/uniPairs'
 import { CHI, CORE, DAI, ROUTER, WBTC, WCORE, WDAI, WETH, WWBTC } from '../constants/addresses'
+import axios from 'axios'
+import { getgid } from 'process'
 const { parseEther, formatEther } = utils
-const contractAddr = '0xad28765f6F577bDd113111669900dc50cF1B641C'
+const contractAddr = '0xcbae7EE55b3D4497907a25B2733C1b7bFe33E6d4'
 const provider = new providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
 // const provider = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
 const signer = new Wallet(deployer.key, provider)
 const uniArbi = new Contract(contractAddr, UniArbi.abi, signer)
 let failureCounter = 0
-const amountForMeta = 10
+const amountForMeta = 15
 const metaForEthBtc = new Array(32).fill(0)
 metaForEthBtc[31] = amountForMeta
 metaForEthBtc[0] = 0b1
@@ -52,22 +54,26 @@ const arbiPlans = [
     pairs: [coreWEthPair.address, coreCBtcPair.address, wBtcWethPair.address],
     meta: metaForEthBtc,
     name: 'eth-btc',
+    gas: BigNumber.from('400000'),
   },
   {
     pairs: [wBtcWethPair.address, coreCBtcPair.address, coreWEthPair.address],
     meta: metaForBtcEth,
     name: 'btc-eth',
+    gas: BigNumber.from('400000'),
   },
   {
     pairs: [DaiWethPair.address, cDaiCCorePair.address, coreWEthPair.address],
     meta: metaForDaiEth,
     name: 'dai-eth',
     feeApplied: true,
+    gas: BigNumber.from('450000'),
   },
   {
     pairs: [coreWEthPair.address, cDaiCCorePair.address, DaiWethPair.address],
     meta: metaForEthDai,
     name: 'eth-dai',
+    gas: BigNumber.from('450000'),
   },
 ]
 
@@ -95,7 +101,7 @@ type Trade = {
   count: number
   status: TransactionStatus
 }
-async function executeStrategy(plan: ArbiPlan, option: { gasPrice: BigNumber; gasLimit: BigNumber }) {
+async function executeStrategy(plan: ArbiPlan, option: { gasPrice: BigNumber }) {
   const transatcionCountMined = await signer.getTransactionCount()
   const override = { ...option, gasLimit: BigNumber.from('830000'), nonce: transatcionCountMined }
 
@@ -104,9 +110,6 @@ async function executeStrategy(plan: ArbiPlan, option: { gasPrice: BigNumber; ga
     gasPrice: ${formatUnits(override.gasPrice, 'gwei')},
     at ${new Date().toLocaleString('en-US', { timeZone: 'Australia/Perth' })}`
   )
-  if (lastTrade.count == 1) {
-    return
-  }
   lastTrade.count = lastTrade.count + 1
   try {
     const tx = await uniArbi.execute(plan.pairs, plan.meta, override)
@@ -122,7 +125,7 @@ async function executeStrategy(plan: ArbiPlan, option: { gasPrice: BigNumber; ga
   }
 }
 
-async function findBestArbi() {
+async function findBestArbi(gasPrice: BigNumber) {
   const bestArbi = {
     plan: arbiPlans[0],
     profit: BigNumber.from('0'),
@@ -133,24 +136,27 @@ async function findBestArbi() {
       const amount = parseEther(plan.meta[31].toString())
       const amounts = (await uniArbi.getAmountsOut(amount, plan.pairs, plan.meta)) as BigNumber[]
       let output = amounts[amounts.length - 1]
-
       if (plan.feeApplied) {
         output = output.mul(990).div(1000)
       }
-      return { profit: output.sub(amount), plan }
+      const gasCost = plan.gas.mul(gasPrice)
+      return { profit: output.sub(amount), gasCost, plan }
     })
     const planResults = await Promise.all(requries)
     planResults.forEach((result) => {
-      const { profit, plan } = result
+      const { profit, plan, gasCost } = result
       const amount = parseEther(plan.meta[31].toString())
+      const profitAfterGas = profit.sub(gasCost)
+
       if (profit.gt(0)) {
         console.log(
-          `profit: ${formatEther(profit)} amount: ${formatEther(amount)}, strategy: ${
+          `profit: ${formatEther(profit)} gasCost:${formatEther(gasCost)}, amount: ${formatEther(amount)}, strategy: ${
             plan.name
           } at: ${new Date().toLocaleString('en-US', { timeZone: 'Australia/Perth' })}`
         )
       }
-      if (profit.gt(bestArbi.profit)) {
+
+      if (profitAfterGas.gt(bestArbi.profit)) {
         bestArbi.profit = profit
         bestArbi.plan = { ...plan }
       }
@@ -205,7 +211,10 @@ async function runCoreArbi() {
         continue
       }
 
-      let gasPrice = await provider.getGasPrice()
+      // let gasPrice = await provider.getGasPrice()
+      // console.log('gasPrice', gasPrice.toString())
+      let gasPrice = await getGas()
+
       if (lastTrade.status === TransactionStatus.Pending) {
         // the base gas price takes too long to execute, increase it by 10%
         gasPrice = gasPrice.mul(110).div(100)
@@ -219,20 +228,12 @@ async function runCoreArbi() {
         }
       }
 
-      const gasLimit = BigNumber.from('520000')
-      let gasCost = gasPrice.mul(gasLimit)
-      if (lastTrade.status === TransactionStatus.Pending) {
-        // reduce the gascost and hope the transaction won't revert
-        gasCost = gasCost.mul(70).div(100)
-      }
-
       const option = {
-        gasPrice: gasPrice.mul(102).div(100), // increase gas fee 102% to fast the comfirmation
-        gasLimit,
+        gasPrice,
       }
 
-      const arbiPlan = await findBestArbi()
-      if (arbiPlan.profit.gt(gasCost)) {
+      const arbiPlan = await findBestArbi(gasPrice)
+      if (arbiPlan.profit.gt(0)) {
         if (lastTrade.status === TransactionStatus.Pending) {
           console.log(
             `pending transaction ${lastTrade.tx} was sent ${
@@ -243,11 +244,18 @@ async function runCoreArbi() {
         await executeStrategy(arbiPlan.plan, option)
       }
     } catch (error) {
-      // console.error(error)
+      console.error(error)
     }
   }
 }
-
+async function getGas() {
+  const url =
+    'https://data-api.defipulse.com/api/v1/egs/api/ethgasAPI.json?api-key=3a9c5ef9fff1a6e00216834bcb6a31a7b896994fa8bf44728284cebc9be9'
+  const {
+    data: { fast, fastest },
+  } = await axios.get(url)
+  return parseUnits(BigNumber.from(fast).div(10).toString(), 'gwei')
+}
 async function approve() {
   await uniArbi.approve(
     [DAI, CORE, WBTC, DAI, CORE, WDAI, WCORE, WBTC, WWBTC, WETH],

@@ -79,18 +79,22 @@ contract UniArbi {
         }
     }
 
+    // meta structure
+    // 31th store weth amount in eth
+    // 30th store if fot is applicable
+
     function execute(address[] calldata pairs, bytes32 meta ) discountCHI external {
 
         uint ethAmount = uint(uint8(meta[31]) * 1e18);
         uint[] memory amounts = getAmountsOut(ethAmount, pairs, meta);
         uint output = amounts[amounts.length - 1];
-        
-        bool hasFot = (uint8(meta[30])) == 1;
 
-        if (hasFot) {
+       // 30th store if fot is applied 
+        if (uint8(meta[30]) == 1) {
             output = output * 990 / 1000;
         }
-        require(output > ethAmount + 300000, 'no profit');
+
+        require(output > ethAmount + 280000 * tx.gasprice, 'no profit');
         // transfer weth to first pair
         IERC20(WETH).transferFrom(msg.sender, pairs[0], ethAmount);
 
