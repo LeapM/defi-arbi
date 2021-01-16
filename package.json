@@ -33,7 +33,8 @@
     "start:compare": "ts-node scripts/alchemy_infura.ts",
     "start:decode": "ts-node scripts/decode.ts",
     "start:other": "ts-node scripts/others.ts",
-    "start:status": "ts-node scripts/arbi.status.ts"
+    "start:pairs": "ts-node scripts/uni.dump.ts",
+    "status": "ts-node scripts/arbi.status.ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.1",
@@ -60,6 +61,7 @@
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "axios": "^0.21.1",
-    "bignumber": "^1.1.0"
+    "bignumber": "^1.1.0",
+    "neo4j-driver": "^4.2.1"
   }
 }

@@ -29,7 +29,8 @@ const signer = new Wallet(deployer.key, provider)
 const coreArbi = new Contract(COREARBI, COREArbi.abi, signer)
 const initialEth = parseEther('8')
 const initialDai = parseEther('20000')
-
+const initialWeth = parseEther('20')
+const currentCombined = '23.6543529805'
 async function getEthPrice() {
   const [buyPrice] = await router.getAmountsIn(parseEther('1'), [DAI, WETH])
   return buyPrice
@@ -42,6 +43,12 @@ async function getBtcPriceInEth() {
 async function getEtherBalance() {
   const balance = await provider.getBalance(BOT)
   return balance
+}
+async function getWEtherBalance() {
+  const balance = await provider.getBalance(BOT)
+  const wethInstance = getErc20Instance(WETH, provider)
+  const wethBalance = (await wethInstance.balanceOf(BOT)) as BigNumber
+  return [balance, wethBalance]
 }
 
 async function getBTCBalance() {
@@ -85,10 +92,24 @@ function formatProfit(initialEth: BigNumber, currentBalance: BigNumber) {
     : '+' + formatEther(currentBalance.sub(initialEth))
 }
 
-async function withdrawProfit() {
-  await coreArbi.withdrawTokens([WBTC, DAI], [ONE_BTC, parseEther('5000')], BOT)
+async function getStatus() {
+  const initial = parseEther('23.6543529805')
+  const [eth, weth] = await getWEtherBalance()
+  const current = eth.add(weth)
+  console.log(
+    `eth: ${formatEther(eth)}, weth: ${formatEther(weth)}, current: ${formatEther(current)}, profit: ${formatEther(
+      current.sub(initial)
+    )}`
+  )
 }
-const functionToRun = getDaiBalance
+async function withdrawProfit() {
+  await coreArbi.withdrawTokens(
+    [WBTC, DAI, WDAI],
+    [ethers.constants.MaxUint256, ethers.constants.MaxUint256, ethers.constants.MaxUint256],
+    BOT
+  )
+}
+const functionToRun = getStatus
 // const functionToRun = withdrawProfit
 functionToRun()
   .then((v: any) => {
