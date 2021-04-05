@@ -102,14 +102,18 @@ async function getStatus() {
     )}`
   )
 }
-async function withdrawProfit() {
-  await coreArbi.withdrawTokens(
-    [WBTC, DAI, WDAI],
-    [ethers.constants.MaxUint256, ethers.constants.MaxUint256, ethers.constants.MaxUint256],
-    BOT
-  )
+
+async function getCoreBalance() {
+  const wbtcInstance = getErc20Instance(CORE, provider)
+  const wbtcBalance = (await wbtcInstance.balanceOf(COREARBI)) as BigNumber
+  const wcoreInstance = getErc20Instance(WCORE, provider)
+  const wcoreBalance = (await wcoreInstance.balanceOf(COREARBI)) as BigNumber
+  console.log(formatEther(wcoreBalance))
 }
-const functionToRun = getStatus
+async function withdrawProfit() {
+  await coreArbi.withdrawTokens([WCORE, CORE], [ethers.constants.MaxUint256, ethers.constants.MaxUint256], BOT)
+}
+const functionToRun = withdrawProfit
 // const functionToRun = withdrawProfit
 functionToRun()
   .then((v: any) => {

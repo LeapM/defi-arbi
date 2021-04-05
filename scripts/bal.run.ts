@@ -11,8 +11,8 @@ const {
 } = ethers
 
 const poolsUrl = 'https://ipfs.fleek.co/ipns/balancer-team-bucket.storage.fleek.co/balancer-exchange/pools'
-// const provider = new ethers.providers.InfuraProvider(undefined)
-const provider = new ethers.providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
+const provider = new ethers.providers.InfuraProvider(undefined)
+// const provider = new ethers.providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
 
 async function execute(
   swaps: any,
@@ -22,7 +22,7 @@ async function execute(
   gasPrice: ethers.BigNumber
 ) {
   console.log('executing...')
-  const wallet = new Wallet(wallets.nulwang.key, provider)
+  const wallet = new Wallet(wallets.staker.key, provider)
   let proxyContract = new Contract(BALANCER_PROXY, BALANCER_API, provider)
   proxyContract = proxyContract.connect(wallet)
   let tx = await proxyContract.multihopBatchSwapExactIn(
@@ -42,25 +42,28 @@ async function execute(
 
 const main = async () => {
   let count = 0
+  console.log('starting bal monitor')
   const options = [
-    {
-      key: 'COREDAI',
-      tokenOut: COREDAILP,
-      amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('32').toString()), //0.071
-      bestRate: new BigNumber(0),
-    },
+    // {
+    //   key: 'COREDAI',
+    //   tokenOut: COREDAILP,
+    //   amountIn: new BigNumber(parseEther('2').toString()),
+    //   amoutOutRequired: new BigNumber(parseEther('32').toString()), //0.071
+    //   bestRate: new BigNumber(0),
+    // },
     {
       key: 'COREETH',
       tokenOut: COREETHLP,
-      amountIn: new BigNumber(parseEther('2').toString()),
-      amoutOutRequired: new BigNumber(parseEther('2.2').toString()), //1.05
+      amountIn: new BigNumber(parseEther('5').toString()),
+      amoutOutRequired: new BigNumber(parseEther('6').toString()), //1.05
       bestRate: new BigNumber(0),
     },
   ]
-  while (count < 10) {
+  let counter = 0
+  while (count < 2) {
+    counter++
     try {
-      await delay(1000 * 30)
+      await delay(1000 * 5)
       const gasPrice = await provider.getGasPrice()
       const sor = new SOR(provider, new BigNumber(gasPrice.toString()), 3, 1, poolsUrl)
       await sor.fetchPools()
@@ -72,6 +75,7 @@ const main = async () => {
         if (amountOut.gt(option.bestRate)) {
           option.bestRate = amountOut
         }
+
         console.log(
           `${
             option.key
@@ -81,7 +85,7 @@ const main = async () => {
           )}`
         )
 
-        if (gasPrice.gt(parseUnits('150', 'gwei'))) {
+        if (gasPrice.gt(parseUnits('500', 'gwei'))) {
           console.log('gas is too expensive')
           continue
         }
@@ -100,6 +104,6 @@ const main = async () => {
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error)
+    console.error('something going wrong')
     process.exit(1)
   })

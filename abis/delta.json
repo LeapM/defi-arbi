@@ -1,0 +1,57 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "DELTAToken",
+  "sourceName": "contracts/core/DELTAToken.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "activatePostFirstRebasingState",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "rebasingLPAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "tokenBalanceHandler",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "tokenTransferHandler",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b50610126806100206000396000f3fe6080604052348015600f57600080fd5b506004361060465760003560e01c8063041b1bbe14604b57806354db7b72146053578063b7cf97ab14606d578063f476e382146073575b600080fd5b60516079565b005b6059607b565b6040516064919060cf565b60405180910390f35b60596097565b605960b3565b565b60005473ffffffffffffffffffffffffffffffffffffffff1681565b60015473ffffffffffffffffffffffffffffffffffffffff1681565b60025473ffffffffffffffffffffffffffffffffffffffff1681565b73ffffffffffffffffffffffffffffffffffffffff9190911681526020019056fea2646970667358221220575437926d6ef55662e3b7c1752f3d985c785180085ab1be25e40b2ffc39457f64736f6c63430007060033",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060465760003560e01c8063041b1bbe14604b57806354db7b72146053578063b7cf97ab14606d578063f476e382146073575b600080fd5b60516079565b005b6059607b565b6040516064919060cf565b60405180910390f35b60596097565b605960b3565b565b60005473ffffffffffffffffffffffffffffffffffffffff1681565b60015473ffffffffffffffffffffffffffffffffffffffff1681565b60025473ffffffffffffffffffffffffffffffffffffffff1681565b73ffffffffffffffffffffffffffffffffffffffff9190911681526020019056fea2646970667358221220575437926d6ef55662e3b7c1752f3d985c785180085ab1be25e40b2ffc39457f64736f6c63430007060033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

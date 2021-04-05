@@ -33,7 +33,10 @@
     "start:compare": "ts-node scripts/alchemy_infura.ts",
     "start:decode": "ts-node scripts/decode.ts",
     "start:other": "ts-node scripts/others.ts",
+    "start:sushi": "ts-node scripts/sushi.ts",
     "start:pairs": "ts-node scripts/uni.dump.ts",
+    "start:delta": "ts-node scripts/delta.ts",
+    "start:fei": "ts-node scripts/fei.ts",
     "status": "ts-node scripts/arbi.status.ts"
   },
   "devDependencies": {
