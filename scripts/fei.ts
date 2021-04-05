@@ -41,10 +41,10 @@ const checkFei = async (amountIn: BigNumber) => {
 const run = async () => {
   const MINETH = '126'
   const GASLIMIT = '550000'
-  const GASPRICE = '800'
+  const GASPRICE = '1000'
   const count = await signer.getTransactionCount()
   const feiAmount = parseUnits('278497266236934505385223', 'wei')
-  const targetEth = parseEther(MINETH).mul(101).div(100)
+  const targetEth = parseEther(MINETH).mul(102).div(100)
   while (!isCalled) {
     const amountOut = await checkFei(feiAmount)
     if (amountOut && amountOut.gt(targetEth)) {
