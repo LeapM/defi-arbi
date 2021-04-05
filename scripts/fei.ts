@@ -34,15 +34,16 @@ const checkFei = async (amountIn: BigNumber) => {
     )
     return amountOut
   } catch (e) {
+    console.error(e)
     return
   }
 }
 const run = async () => {
-  const MINETH = '125'
+  const MINETH = '126'
   const GASLIMIT = '550000'
   const GASPRICE = '800'
   const count = await signer.getTransactionCount()
-  const feiAmount = parseUnits('279497266236934505385220', 'wei')
+  const feiAmount = parseUnits('278497266236934505385223', 'wei')
   const targetEth = parseEther(MINETH).mul(101).div(100)
   while (!isCalled) {
     const amountOut = await checkFei(feiAmount)
@@ -69,7 +70,6 @@ async function getRich(feiAmount: BigNumber, minEth: BigNumber, gasLimit: string
     gasLimit: parseUnits(gasLimit, 'wei'),
     nonce: nonce,
   }
-  //swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
   const order1 = router
     .connect(signer)
     .sellFei(feiAmount.div(2), feiAmount, minEth, signer.address, Math.round(Date.now() / 100 + 120), override)
