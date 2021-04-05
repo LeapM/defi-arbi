@@ -21,10 +21,10 @@ const checkFei = async (amountIn: BigNumber) => {
   try {
     // const ethBalance = await signer.getBalance()
     // setEthBalance(formatEther(ethBalance))
-    const penalty = (await penalityContract.getSellPenalty(amountIn))[0]
-    console.log(`penalty ${formatEther(penalty)} , net after penalty ${formatEther(amountIn.sub(penalty))}`)
     const reserves = await penalityContract.getReserves()
     const [reserverIn, reserveOut] = reserves
+    const penalty = (await penalityContract.getSellPenalty(amountIn))[0]
+    console.log(`penalty ${formatEther(penalty)} , net after penalty ${formatEther(amountIn.sub(penalty))}`)
     const amountOut = getAmountOut(amountIn.sub(penalty), reserverIn, reserveOut)
     console.log(
       formatEther(reserverIn),
@@ -39,7 +39,7 @@ const checkFei = async (amountIn: BigNumber) => {
   }
 }
 const run = async () => {
-  const MINETH = '126'
+  const MINETH = '125'
   const GASLIMIT = '550000'
   const GASPRICE = '1000'
   const count = await signer.getTransactionCount()
