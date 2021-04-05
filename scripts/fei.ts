@@ -2,8 +2,9 @@ import { BigNumber, Contract, providers, Wallet } from 'ethers'
 import { familystake } from '../secret/wallet.json'
 import { formatEther, formatUnits, parseEther, parseUnits } from 'ethers/lib/utils'
 import uniRouter02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.json'
-import { ROUTER, WETH, FEIUniPenality, FEIETHPair } from '../constants/addresses'
+import { ROUTER, WETH, FEIUniPenality, FEIETHPair, FEIRouter } from '../constants/addresses'
 import FeiAbi from '../abis/feiincentive'
+import FeiRouterAbi from '../abis/feiRouter'
 import { delay } from './utils'
 
 const provider = new providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
@@ -12,7 +13,6 @@ const signer = new Wallet(familystake.key, provider)
 
 const provider2 = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
 const signer2 = new Wallet(familystake.key, provider2)
-
 const penalityContract = new Contract(FEIUniPenality, FeiAbi, provider)
 
 let isCalled = false
@@ -39,8 +39,8 @@ const checkFei = async (amountIn: BigNumber) => {
 }
 const run = async () => {
   const MINETH = '125'
-  const GASLIMIT = '650000'
-  const GASPRICE = '1000'
+  const GASLIMIT = '550000'
+  const GASPRICE = '800'
   const count = await signer.getTransactionCount()
   const feiAmount = parseUnits('279497266236934505385220', 'wei')
   const targetEth = parseEther(MINETH).mul(101).div(100)
@@ -57,7 +57,7 @@ const run = async () => {
 
 async function getRich(feiAmount: BigNumber, minEth: BigNumber, gasLimit: string, gasPrice: string, nonce: number) {
   const feiAddress = '0x956F47F50A910163D8BF957Cf5846D573E7f87CA'
-  const router = new Contract(ROUTER, uniRouter02.abi, signer)
+  const router = new Contract(FEIRouter, FeiRouterAbi, signer)
 
   console.log(
     `sell ${formatEther(feiAmount)} gasLimit ${gasLimit} gasprice ${gasPrice}, nonce ${nonce},for minimum ${formatEther(
@@ -72,28 +72,14 @@ async function getRich(feiAmount: BigNumber, minEth: BigNumber, gasLimit: string
   //swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
   const order1 = router
     .connect(signer)
-    .swapExactTokensForETH(
-      feiAmount,
-      minEth,
-      [feiAddress, WETH],
-      signer.address,
-      Math.round(Date.now() / 100 + 120),
-      override
-    )
+    .sellFei(feiAmount.div(2), feiAmount, minEth, signer.address, Math.round(Date.now() / 100 + 120), override)
   order1.then(console.log).catch(console.error)
 
   console.log('processing order1')
 
   const order2 = router
     .connect(signer2)
-    .swapExactTokensForETH(
-      feiAmount,
-      minEth,
-      [feiAddress, WETH],
-      signer.address,
-      Math.round(Date.now() / 100 + 120),
-      override
-    )
+    .sellFei(feiAmount.div(2), feiAmount, minEth, signer.address, Math.round(Date.now() / 100 + 120), override)
   order2.then(console.log).catch(console.error)
 
   console.log('processing order2')
