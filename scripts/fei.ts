@@ -52,7 +52,7 @@ const run = async () => {
       isCalled = true
       await getRich(feiAmount, parseEther(MINETH), GASLIMIT, GASPRICE, count)
     }
-    await delay(7000)
+    await delay(4000)
   }
 }
 
