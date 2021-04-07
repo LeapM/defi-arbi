@@ -1,20 +1,21 @@
 import { BigNumber, Contract, providers, Wallet } from 'ethers'
-import { familystake } from '../secret/wallet.json'
+import { firstMetaMask } from '../secret/wallet.json'
 import { formatEther, formatUnits, parseEther, parseUnits } from 'ethers/lib/utils'
 import uniRouter02 from '@uniswap/v2-periphery/build/IUniswapV2Router02.json'
-import { ROUTER, WETH, FEIUniPenality, FEIETHPair, FEIRouter } from '../constants/addresses'
-import FeiAbi from '../abis/feiincentive'
+import { ROUTER, WETH, FEIUniPenality, FEIETHPair, FEIRouter, FEI } from '../constants/addresses'
+import FeiIncentiveAbi from '../abis/feiincentive'
+import { abi as Erc20Abi } from '../abis/erc20.json'
 import FeiRouterAbi from '../abis/feiRouter'
 import { delay } from './utils'
 
 const provider = new providers.AlchemyProvider(undefined, 'P6b7PduZEpsHlatVROjGcVGQF7CqS_S0')
 
-const signer = new Wallet(familystake.key, provider)
+const signer = new Wallet(firstMetaMask.key, provider)
 
 const provider2 = new providers.InfuraProvider(undefined, '3ad5fab786964809988a9c7fefc5d3a5')
-const signer2 = new Wallet(familystake.key, provider2)
-const penalityContract = new Contract(FEIUniPenality, FeiAbi, provider)
-
+const signer2 = new Wallet(firstMetaMask.key, provider2)
+const penalityContract = new Contract(FEIUniPenality, FeiIncentiveAbi, provider)
+const feiContract = new Contract(FEI, Erc20Abi, provider)
 let isCalled = false
 
 const checkFei = async (amountIn: BigNumber) => {
@@ -39,11 +40,12 @@ const checkFei = async (amountIn: BigNumber) => {
   }
 }
 const run = async () => {
-  const MINETH = '121'
+  const MINETH = '60'
   const GASLIMIT = '550000'
   const GASPRICE = '1000'
   const count = await signer.getTransactionCount()
-  const feiAmount = parseUnits('278497266236934505385223', 'wei')
+  const feiAmount = await feiContract.balanceOf(signer.address)
+  console.log(count, formatEther(feiAmount))
   const targetEth = parseEther(MINETH).mul(105).div(100)
   while (!isCalled) {
     const amountOut = await checkFei(feiAmount)
